@@ -762,6 +762,57 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
 .bar-fill { height: 100%; background: var(--primary); border-radius: 999px; transition: filter 150ms ease; }
 .bar-value { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); color: var(--text-muted); }
 
+/* ---------- calendar ---------- */
+
+.calendar-legend { display: flex; gap: 1.25rem; margin-bottom: 1rem; font-size: 0.82rem; color: var(--text-muted); }
+.calendar-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.calendar-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.calendar-dot-task { background: var(--primary); }
+.calendar-dot-milestone { background: var(--warning); }
+.calendar-dot-timesheet { background: var(--success); }
+.calendar-event-task { background: var(--primary-light); color: var(--primary); }
+.calendar-event-milestone { background: var(--warning-bg); color: var(--warning); }
+.calendar-event-timesheet { background: var(--success-bg); color: var(--success); }
+
+.calendar-scroll { overflow-x: auto; }
+.calendar-grid { min-width: 700px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.calendar-weekday-row, .calendar-week-row { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); }
+.calendar-weekday-row {
+  background: var(--surface-sunken);
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.calendar-weekday-row > div { padding: 0.5rem 0.6rem; }
+.calendar-week-row { border-top: 1px solid var(--border); }
+.calendar-day {
+  min-height: 92px;
+  padding: 0.4rem 0.5rem;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.calendar-day:last-child { border-right: none; }
+.calendar-day-outside { opacity: 0.45; }
+.calendar-day-today { background: var(--primary-light); }
+.calendar-day-number { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+.calendar-day-today .calendar-day-number { color: var(--primary); }
+.calendar-event {
+  display: block;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+  transition: filter 120ms ease;
+}
+.calendar-event:hover { filter: brightness(0.95); text-decoration: none; }
+
 /* ---------- chat ---------- */
 
 .chat-layout { display: grid; grid-template-columns: 230px 1fr; gap: 1.5rem; height: calc(100vh - 190px); min-height: 420px; }

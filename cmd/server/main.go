@@ -13,6 +13,7 @@ import (
 
 	"github.com/sociolytik/odoo-clone/internal/attachments"
 	"github.com/sociolytik/odoo-clone/internal/auth"
+	"github.com/sociolytik/odoo-clone/internal/calendar"
 	"github.com/sociolytik/odoo-clone/internal/chat"
 	"github.com/sociolytik/odoo-clone/internal/config"
 	"github.com/sociolytik/odoo-clone/internal/db"
@@ -106,6 +107,9 @@ func main() {
 	timesheetsRepo := timesheets.NewRepo(pool)
 	timesheetsHandlers := timesheets.NewHandlers(timesheetsRepo, projectsRepo, notificationsRepo, renderer)
 	timesheetsHandlers.MountRoutes(mux, authMW)
+
+	calendarHandlers := calendar.NewHandlers(projectsRepo, timesheetsRepo, renderer)
+	calendarHandlers.MountRoutes(mux, authMW)
 
 	chatHub := chat.NewHub()
 	go chatHub.Run()

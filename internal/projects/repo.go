@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -237,6 +238,34 @@ func (r *Repo) ListTasksDueTodayUnnotified(ctx context.Context) ([]Task, error) 
 func (r *Repo) MarkDueReminderSent(ctx context.Context, taskID int64) error {
 	_, err := r.pool.Exec(ctx, `UPDATE tasks SET due_reminder_sent_at = now() WHERE id = $1`, taskID)
 	return err
+}
+
+// ListTasksDueBetween scopes across every project userID is a member of —
+// same membership-join shape ListMilestonesBetween and
+// timesheets/reports_repo.go use — for [from, to) (to exclusive). Used by
+// the calendar view; dependencies aren't loaded since the calendar only
+// needs each task's name/date/link, not its dependency graph.
+func (r *Repo) ListTasksDueBetween(ctx context.Context, userID int64, from, to time.Time) ([]Task, error) {
+	rows, err := r.pool.Query(ctx, taskSelect+`
+		JOIN project_members pm ON pm.project_id = t.project_id AND pm.user_id = $1
+		WHERE t.end_date >= $2 AND t.end_date < $3
+		ORDER BY t.end_date, t.id`, userID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []Task
+	for rows.Next() {
+		var t Task
+		if err := rows.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
+			&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
+			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, rows.Err()
 }
 
 func (r *Repo) GetTask(ctx context.Context, id int64) (*Task, error) {

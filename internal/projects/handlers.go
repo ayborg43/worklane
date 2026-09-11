@@ -68,6 +68,8 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("DELETE /projects/{id}/dependencies/{taskID}/{depID}", mw.RequireAuth(http.HandlerFunc(h.RemoveDependency)))
 	mux.Handle("POST /projects/{id}/members", mw.RequireAuth(http.HandlerFunc(h.AddMember)))
 	mux.Handle("DELETE /projects/{id}/members/{userID}", mw.RequireAuth(http.HandlerFunc(h.RemoveMember)))
+	mux.Handle("POST /projects/{id}/milestones", mw.RequireAuth(http.HandlerFunc(h.CreateMilestone)))
+	mux.Handle("DELETE /projects/{id}/milestones/{milestoneID}", mw.RequireAuth(http.HandlerFunc(h.DeleteMilestone)))
 }
 
 // requireMember loads the project and 404s if the current user isn't a
@@ -117,6 +119,7 @@ type pageData struct {
 	Users          []auth.User
 	Members        []auth.User
 	NonMembers     []auth.User
+	Milestones     []Milestone
 	ProjectFiles   []attachments.Attachment
 	TaskNames      map[int64]string
 	GanttTasksJSON template.JS
@@ -221,6 +224,11 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	milestones, err := h.Repo.ListMilestones(r.Context(), projectID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ganttJSON, err := BuildGanttTasksJSON(tasks)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -235,11 +243,12 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		Users:          users,
 		Members:        members,
 		NonMembers:     nonMembers,
+		Milestones:     milestones,
 		ProjectFiles:   files,
 		TaskNames:      taskNameLookup(tasks),
 		GanttTasksJSON: template.JS(ganttJSON),
 		View:           viewFromRequest(r),
-	}, "projects/project_body.html", "projects/members_section.html", "attachments/project_files.html")
+	}, "projects/project_body.html", "projects/members_section.html", "projects/milestones_section.html", "attachments/project_files.html")
 }
 
 func (h *Handlers) TaskOptions(w http.ResponseWriter, r *http.Request) {
@@ -548,6 +557,87 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.renderMembersSection(w, r, projectID)
+}
+
+// CreateMilestone/DeleteMilestone use requireMember (not requireOwner) —
+// milestones are a planning artifact like tasks, not an access-control
+// concern like membership, so any member can manage them.
+func (h *Handlers) CreateMilestone(w http.ResponseWriter, r *http.Request) {
+	projectID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, ok := h.requireMember(w, r, projectID); !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+	date, err := time.Parse("2006-01-02", r.FormValue("date"))
+	if err != nil {
+		http.Error(w, "invalid date", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.Repo.CreateMilestone(r.Context(), projectID, name, date); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderMilestonesSection(w, r, projectID)
+}
+
+func (h *Handlers) DeleteMilestone(w http.ResponseWriter, r *http.Request) {
+	projectID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	milestoneID, err := strconv.ParseInt(r.PathValue("milestoneID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, ok := h.requireMember(w, r, projectID); !ok {
+		return
+	}
+	milestone, err := h.Repo.GetMilestone(r.Context(), milestoneID)
+	if err != nil {
+		h.handleLookupError(w, r, err)
+		return
+	}
+	if milestone.ProjectID != projectID {
+		http.NotFound(w, r)
+		return
+	}
+	if err := h.Repo.DeleteMilestone(r.Context(), milestoneID); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderMilestonesSection(w, r, projectID)
+}
+
+func (h *Handlers) renderMilestonesSection(w http.ResponseWriter, r *http.Request, projectID int64) {
+	project, err := h.Repo.GetProject(r.Context(), projectID)
+	if err != nil {
+		h.handleLookupError(w, r, err)
+		return
+	}
+	milestones, err := h.Repo.ListMilestones(r.Context(), projectID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.Renderer.RenderFragment(w, http.StatusOK, "projects/milestones_section.html", pageData{
+		PageData:   auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		Project:    *project,
+		Milestones: milestones,
+	})
 }
 
 func (h *Handlers) renderMembersSection(w http.ResponseWriter, r *http.Request, projectID int64) {

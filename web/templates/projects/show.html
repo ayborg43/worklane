@@ -8,6 +8,8 @@
 
 {{template "members_section.html" .}}
 
+{{template "milestones_section.html" .}}
+
 <details class="card" style="margin-bottom:1.5rem;">
   <summary>Files</summary>
   <form hx-post="/projects/{{.Project.ID}}/attachments" hx-target="#project-files" hx-swap="outerHTML" hx-encoding="multipart/form-data" style="margin-top:1rem;">

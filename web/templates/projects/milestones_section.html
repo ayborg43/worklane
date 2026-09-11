@@ -1,0 +1,21 @@
+<div id="project-milestones" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Milestones</h3>
+  {{if .Milestones}}
+  <ul class="member-list">
+    {{range .Milestones}}
+    <li class="member-row">
+      <span>{{.Name}}</span>
+      <span class="badge">{{.Date.Format "Jan 2, 2006"}}</span>
+      <button type="button" hx-delete="/projects/{{$.Project.ID}}/milestones/{{.ID}}" hx-target="#project-milestones" hx-swap="outerHTML" hx-confirm="Remove this milestone?" class="link-button">Remove</button>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No milestones yet.</p>
+  {{end}}
+  <form hx-post="/projects/{{.Project.ID}}/milestones" hx-target="#project-milestones" hx-swap="outerHTML" class="member-add-form">
+    <input type="text" name="name" placeholder="Milestone name" required style="flex:1; min-width:0;">
+    <input type="date" name="date" required style="max-width:170px; flex-shrink:0;">
+    <button type="submit">Add milestone</button>
+  </form>
+</div>

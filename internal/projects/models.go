@@ -52,3 +52,12 @@ type Comment struct {
 	Body      string
 	CreatedAt time.Time
 }
+
+type Milestone struct {
+	ID          int64
+	ProjectID   int64
+	ProjectName string
+	Name        string
+	Date        time.Time
+	CreatedAt   time.Time
+}

@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Calendar</h1>
+  <div class="week-nav">
+    <a class="button secondary" href="/calendar?month={{.PrevMonth}}">&larr; Prev</a>
+    <span class="week-nav-range">{{.MonthLabel}}</span>
+    <a class="button secondary" href="/calendar?month={{.NextMonth}}">Next &rarr;</a>
+  </div>
+</div>
+
+<div class="calendar-legend">
+  <span class="calendar-legend-item"><span class="calendar-dot calendar-dot-task"></span>Task due</span>
+  <span class="calendar-legend-item"><span class="calendar-dot calendar-dot-milestone"></span>Milestone</span>
+  <span class="calendar-legend-item"><span class="calendar-dot calendar-dot-timesheet"></span>Time logged</span>
+</div>
+
+<div class="calendar-scroll">
+  <div class="calendar-grid">
+    <div class="calendar-weekday-row">
+      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+    </div>
+    {{range .Weeks}}
+    <div class="calendar-week-row">
+      {{range .}}
+      <div class="calendar-day{{if not .InMonth}} calendar-day-outside{{end}}{{if .IsToday}} calendar-day-today{{end}}">
+        <span class="calendar-day-number">{{.Date.Day}}</span>
+        {{range .Events}}
+        <a href="{{.Link}}" class="calendar-event calendar-event-{{.Kind}}">{{.Label}}</a>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
