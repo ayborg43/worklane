@@ -48,6 +48,10 @@ type pageData struct {
 	PrevMonth  string
 	NextMonth  string
 	Weeks      [][]day
+	// HasEvents drives the mobile agenda view's empty state — computed here
+	// rather than re-derived in the template, since Go templates have no
+	// clean way to test "did any day in this nested range have events".
+	HasEvents bool
 }
 
 // mondayOf returns midnight UTC on the Monday of the week containing t —
@@ -124,11 +128,15 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	todayKey := time.Now().UTC().Format("2006-01-02")
 
 	var weeks [][]day
+	hasEvents := false
 	for weekStart := gridStart; weekStart.Before(gridEnd); weekStart = weekStart.AddDate(0, 0, 7) {
 		var week []day
 		for i := 0; i < 7; i++ {
 			date := weekStart.AddDate(0, 0, i)
 			key := date.Format("2006-01-02")
+			if len(events[key]) > 0 {
+				hasEvents = true
+			}
 			week = append(week, day{
 				Date:    date,
 				InMonth: date.Month() == monthStart.Month() && date.Year() == monthStart.Year(),
@@ -145,5 +153,6 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		PrevMonth:  monthStart.AddDate(0, -1, 0).Format("2006-01"),
 		NextMonth:  monthStart.AddDate(0, 1, 0).Format("2006-01"),
 		Weeks:      weeks,
+		HasEvents:  hasEvents,
 	})
 }

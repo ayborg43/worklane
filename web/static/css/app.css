@@ -774,9 +774,14 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
 .calendar-event-milestone { background: var(--warning-bg); color: var(--warning); }
 .calendar-event-timesheet { background: var(--success-bg); color: var(--success); }
 
-.calendar-scroll { overflow-x: auto; }
-.calendar-grid { min-width: 700px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.calendar-weekday-row, .calendar-week-row { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); }
+/* Month grid — the default, tablet/desktop view. */
+.calendar-grid {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.calendar-weekday-row, .calendar-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .calendar-weekday-row {
   background: var(--surface-sunken);
   color: var(--text-faint);
@@ -784,26 +789,39 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
 }
-.calendar-weekday-row > div { padding: 0.5rem 0.6rem; }
-.calendar-week-row { border-top: 1px solid var(--border); }
+.calendar-weekday-row > div { padding: 0.6rem; text-align: center; }
+.calendar-week-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .calendar-day {
-  min-height: 92px;
-  padding: 0.4rem 0.5rem;
+  min-height: 118px;
+  padding: 0.5rem;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 .calendar-day:last-child { border-right: none; }
-.calendar-day-outside { opacity: 0.45; }
-.calendar-day-today { background: var(--primary-light); }
-.calendar-day-number { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
-.calendar-day-today .calendar-day-number { color: var(--primary); }
+.calendar-day-outside { background: var(--surface-sunken); }
+.calendar-day-outside .calendar-day-number { color: var(--text-faint); }
+.calendar-day-number {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.calendar-day-today .calendar-day-number { background: var(--primary); color: #fff; }
+.calendar-day-events { display: flex; flex-direction: column; gap: 0.22rem; min-width: 0; }
 .calendar-event {
   display: block;
   font-size: 0.72rem;
-  padding: 0.15rem 0.4rem;
+  padding: 0.18rem 0.4rem;
   border-radius: var(--radius-sm);
   white-space: nowrap;
   overflow: hidden;
@@ -812,6 +830,36 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   transition: filter 120ms ease;
 }
 .calendar-event:hover { filter: brightness(0.95); text-decoration: none; }
+
+/* Agenda list — mobile only. A 7-column grid has no room to be legible on a
+   phone, so narrow viewports get a day-by-day list instead of a shrunken
+   (or horizontally-scrolling) grid — the same "don't force horizontal
+   scroll on something meant to be glanced at" call made everywhere else
+   mobile-responsive in this app. */
+.calendar-agenda { display: none; }
+.calendar-agenda-day {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface);
+}
+.calendar-agenda-day-today { border-color: var(--primary); }
+.calendar-agenda-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.55rem;
+}
+.calendar-agenda-events { display: flex; flex-direction: column; gap: 0.35rem; }
+.calendar-agenda-events .calendar-event { white-space: normal; overflow: visible; text-overflow: clip; }
+
+@media (max-width: 640px) {
+  .calendar-grid { display: none; }
+  .calendar-agenda { display: block; }
+}
 
 /* ---------- chat ---------- */
 
