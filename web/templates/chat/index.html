@@ -1,0 +1,120 @@
+{{define "content"}}
+<div class="chat-layout">
+  <div class="chat-channels">
+    <h3 style="margin-top:0;">Channels</h3>
+    {{range .Channels}}
+      {{if eq .Kind "channel"}}
+      <a href="/chat/channels/{{.ID}}" class="{{if and $.ActiveChannel (eq $.ActiveChannel.ID .ID)}}active{{end}}"># {{.Name}} {{if .UnreadCount}}<span class="notif-badge">{{.UnreadCount}}</span>{{end}}</a>
+      {{end}}
+    {{end}}
+    <details style="margin-top:0.5rem;">
+      <summary style="font-size:0.85rem;color:var(--text-muted);cursor:pointer;">New channel</summary>
+      <form method="post" action="/chat/channels" style="margin-top:0.5rem;">
+        <input type="text" name="name" placeholder="channel-name" required>
+        <button type="submit" style="margin-top:0.4rem;">Create</button>
+      </form>
+    </details>
+
+    <h3>Direct messages</h3>
+    {{range .Channels}}
+      {{if eq .Kind "dm"}}
+      <a href="/chat/channels/{{.ID}}" class="{{if and $.ActiveChannel (eq $.ActiveChannel.ID .ID)}}active{{end}}">{{.OtherUserName}} {{if .UnreadCount}}<span class="notif-badge">{{.UnreadCount}}</span>{{end}}</a>
+      {{end}}
+    {{end}}
+    <details style="margin-top:0.5rem;">
+      <summary style="font-size:0.85rem;color:var(--text-muted);cursor:pointer;">Start a DM</summary>
+      <div style="margin-top:0.5rem;">
+        {{range .Users}}
+          {{if ne .ID $.CurrentUser.ID}}
+          <form method="post" action="/chat/dm/{{.ID}}" style="margin-bottom:0.25rem;">
+            <button type="submit" class="link-button">{{.Name}}</button>
+          </form>
+          {{end}}
+        {{end}}
+      </div>
+    </details>
+  </div>
+
+  <div class="chat-main">
+    {{if .ActiveChannel}}
+    <h2 style="margin-top:0;">{{if eq .ActiveChannel.Kind "dm"}}{{.ActiveChannel.OtherUserName}}{{else}}# {{.ActiveChannel.Name}}{{end}}</h2>
+    <div hx-ext="ws" ws-connect="/chat/ws/{{.ActiveChannel.ID}}" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div id="messages">
+        {{range .Messages}}{{template "message_row.html" .}}{{end}}
+      </div>
+      <form ws-send class="chat-form" hx-on::ws-after-send="this.reset()">
+        <button type="button" class="chat-icon-btn" onclick="document.getElementById('chat-file-input').click()" aria-label="Attach file" title="Attach file">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+        </button>
+        <div class="emoji-picker-wrap" x-data="{open:false}" x-on:click.outside="open=false">
+          <button type="button" class="chat-icon-btn" x-on:click="open=!open" aria-label="Emoji" title="Emoji">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
+          </button>
+          <div class="emoji-dropdown" x-show="open" x-cloak>
+            <button type="button" onclick="window.__insertEmoji('😀')">😀</button>
+            <button type="button" onclick="window.__insertEmoji('😂')">😂</button>
+            <button type="button" onclick="window.__insertEmoji('😅')">😅</button>
+            <button type="button" onclick="window.__insertEmoji('😊')">😊</button>
+            <button type="button" onclick="window.__insertEmoji('😍')">😍</button>
+            <button type="button" onclick="window.__insertEmoji('😘')">😘</button>
+            <button type="button" onclick="window.__insertEmoji('😎')">😎</button>
+            <button type="button" onclick="window.__insertEmoji('🤔')">🤔</button>
+            <button type="button" onclick="window.__insertEmoji('😴')">😴</button>
+            <button type="button" onclick="window.__insertEmoji('😢')">😢</button>
+            <button type="button" onclick="window.__insertEmoji('😭')">😭</button>
+            <button type="button" onclick="window.__insertEmoji('😡')">😡</button>
+            <button type="button" onclick="window.__insertEmoji('🥳')">🥳</button>
+            <button type="button" onclick="window.__insertEmoji('😇')">😇</button>
+            <button type="button" onclick="window.__insertEmoji('🙄')">🙄</button>
+            <button type="button" onclick="window.__insertEmoji('😬')">😬</button>
+            <button type="button" onclick="window.__insertEmoji('🤝')">🤝</button>
+            <button type="button" onclick="window.__insertEmoji('👍')">👍</button>
+            <button type="button" onclick="window.__insertEmoji('👎')">👎</button>
+            <button type="button" onclick="window.__insertEmoji('👏')">👏</button>
+            <button type="button" onclick="window.__insertEmoji('🙌')">🙌</button>
+            <button type="button" onclick="window.__insertEmoji('🙏')">🙏</button>
+            <button type="button" onclick="window.__insertEmoji('💪')">💪</button>
+            <button type="button" onclick="window.__insertEmoji('👋')">👋</button>
+            <button type="button" onclick="window.__insertEmoji('❤️')">❤️</button>
+            <button type="button" onclick="window.__insertEmoji('🔥')">🔥</button>
+            <button type="button" onclick="window.__insertEmoji('🎉')">🎉</button>
+            <button type="button" onclick="window.__insertEmoji('✅')">✅</button>
+            <button type="button" onclick="window.__insertEmoji('❌')">❌</button>
+            <button type="button" onclick="window.__insertEmoji('⭐')">⭐</button>
+            <button type="button" onclick="window.__insertEmoji('💯')">💯</button>
+            <button type="button" onclick="window.__insertEmoji('🚀')">🚀</button>
+            <button type="button" onclick="window.__insertEmoji('☕')">☕</button>
+            <button type="button" onclick="window.__insertEmoji('🍕')">🍕</button>
+            <button type="button" onclick="window.__insertEmoji('🎂')">🎂</button>
+            <button type="button" onclick="window.__insertEmoji('👀')">👀</button>
+          </div>
+        </div>
+        <input type="text" name="chat_message" placeholder="Message…" autocomplete="off" required>
+        <button type="submit" class="chat-send-btn" aria-label="Send" title="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+        </button>
+      </form>
+      <input type="file" id="chat-file-input" name="file" style="display:none" hx-post="/chat/channels/{{.ActiveChannel.ID}}/attachments" hx-encoding="multipart/form-data" hx-trigger="change" hx-swap="none">
+    </div>
+    <script>
+      (function () {
+        var box = document.getElementById("messages");
+        if (box) box.scrollTop = box.scrollHeight;
+      })();
+      window.__insertEmoji = function (e) {
+        var input = document.querySelector(".chat-form input[name=chat_message]");
+        if (!input) return;
+        var start = input.selectionStart != null ? input.selectionStart : input.value.length;
+        var end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+        input.value = input.value.slice(0, start) + e + input.value.slice(end);
+        var pos = start + e.length;
+        input.focus();
+        input.setSelectionRange(pos, pos);
+      };
+    </script>
+    {{else}}
+    <p class="empty-state">Select a channel or start a DM to begin chatting.</p>
+    {{end}}
+  </div>
+</div>
+{{end}}

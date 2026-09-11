@@ -1,0 +1,43 @@
+<div id="timesheet-body">
+{{if .HasEntries}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>Date</th><th>Project</th><th>Task</th><th>Hours</th><th>Description</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .Days}}
+      {{$day := .}}
+      {{range .Entries}}
+      <tr>
+        <td data-label="Date">{{$day.Date.Format "Mon, Jan 2"}}</td>
+        <td data-label="Project">{{.ProjectName}}</td>
+        <td data-label="Task">{{if .TaskName}}{{.TaskName}}{{else}}—{{end}}</td>
+        <td data-label="Hours">{{.Hours}}h</td>
+        <td data-label="Description">{{.Description}}</td>
+        <td data-label="Status">
+          <span class="badge badge-{{.Status}}">{{.Status}}</span>
+          {{if eq .Status "rejected"}}<span title="{{.RejectionReason}}">&#9432;</span>{{end}}
+        </td>
+        <td data-label="Actions">
+          {{if ne .Status "approved"}}
+          <button type="button" hx-delete="/timesheets/{{.ID}}?week={{$.WeekStart.Format "2006-01-02"}}" hx-target="#timesheet-body" hx-swap="outerHTML" hx-confirm="Delete this entry?" class="link-button">Delete</button>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+      {{end}}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" style="text-align:right;font-weight:600;">Week total</td>
+        <td style="font-weight:600;">{{.WeekTotal}}h</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+{{else}}
+  <p class="empty-state">No time logged this week yet.</p>
+{{end}}
+</div>

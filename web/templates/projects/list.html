@@ -1,0 +1,31 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Projects</h1>
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New project</summary>
+  <form method="post" action="/projects" style="margin-top:1rem;">
+    <label>Name
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Description
+      <textarea name="description" rows="2"></textarea>
+    </label>
+    <button type="submit">Create project</button>
+  </form>
+</details>
+
+{{if .Projects}}
+<div class="list-grid">
+  {{range .Projects}}
+  <a class="card project-card" href="/projects/{{.ID}}">
+    <h3>{{.Name}}</h3>
+    <p>{{.TaskCount}} task{{if ne .TaskCount 1}}s{{end}} &middot; owner {{.OwnerName}}</p>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<p class="empty-state">No projects yet — create one above.</p>
+{{end}}
+{{end}}

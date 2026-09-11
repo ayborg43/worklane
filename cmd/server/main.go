@@ -1,0 +1,151 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/joho/godotenv"
+
+	"github.com/sociolytik/odoo-clone/internal/attachments"
+	"github.com/sociolytik/odoo-clone/internal/auth"
+	"github.com/sociolytik/odoo-clone/internal/chat"
+	"github.com/sociolytik/odoo-clone/internal/config"
+	"github.com/sociolytik/odoo-clone/internal/db"
+	"github.com/sociolytik/odoo-clone/internal/notifications"
+	"github.com/sociolytik/odoo-clone/internal/projects"
+	"github.com/sociolytik/odoo-clone/internal/settings"
+	"github.com/sociolytik/odoo-clone/internal/timesheets"
+	"github.com/sociolytik/odoo-clone/internal/web"
+)
+
+const attachmentsDir = "data/attachments"
+
+func main() {
+	_ = godotenv.Load()
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("db connect: %v", err)
+	}
+	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
+	log.Println("migrations applied")
+
+	renderer := web.NewRenderer("web/templates")
+
+	authRepo := auth.NewRepo(pool)
+	authMW := auth.NewMiddleware(authRepo)
+	authHandlers := auth.NewHandlers(authRepo, renderer, cfg.CookieSecure, time.Duration(cfg.SessionTTLDay)*24*time.Hour)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		if auth.UserFromContext(r.Context()) != nil {
+			http.Redirect(w, r, "/projects", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusFound)
+	})
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	mux.HandleFunc("GET /manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "web/static/manifest.json")
+	})
+	// Served at the root (not /static/sw.js) so its default scope covers the
+	// whole app — a service worker's registration scope is capped at its own
+	// directory unless served from root or given a Service-Worker-Allowed
+	// header, and it needs to control every page, not just /static/.
+	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "web/static/sw.js")
+	})
+
+	authHandlers.MountRoutes(mux, authMW)
+
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
+		log.Fatalf("create attachments dir: %v", err)
+	}
+	attachmentsRepo := attachments.NewRepo(pool)
+
+	settingsRepo := settings.NewRepo(pool)
+	settingsHandlers := settings.NewHandlers(settingsRepo, renderer)
+	settingsHandlers.MountRoutes(mux, authMW)
+
+	notificationsRepo := notifications.NewRepo(pool, authRepo, settingsRepo, cfg.BaseURL)
+	notificationsHandlers := notifications.NewHandlers(notificationsRepo, renderer)
+	notificationsHandlers.MountRoutes(mux, authMW)
+
+	projectsRepo := projects.NewRepo(pool)
+	projectsHandlers := projects.NewHandlers(projectsRepo, authRepo, attachmentsRepo, notificationsRepo, renderer)
+	projectsHandlers.MountRoutes(mux, authMW)
+
+	attachmentsHandlers := attachments.NewHandlers(attachmentsRepo, projectsRepo, renderer, attachmentsDir)
+	attachmentsHandlers.MountRoutes(mux, authMW)
+
+	timesheetsRepo := timesheets.NewRepo(pool)
+	timesheetsHandlers := timesheets.NewHandlers(timesheetsRepo, projectsRepo, notificationsRepo, renderer)
+	timesheetsHandlers.MountRoutes(mux, authMW)
+
+	chatHub := chat.NewHub()
+	go chatHub.Run()
+	chatRepo := chat.NewRepo(pool)
+	chatHandlers := chat.NewHandlers(chatRepo, authRepo, renderer, chatHub, attachmentsDir)
+	chatHandlers.MountRoutes(mux, authMW)
+
+	handler := authMW.LoadUser(mux)
+
+	srv := &http.Server{
+		Addr:         cfg.Addr,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := authRepo.DeleteExpiredSessions(ctx); err != nil {
+					log.Printf("cleanup expired sessions: %v", err)
+				}
+			}
+		}
+	}()
+
+	go func() {
+		log.Printf("listening on %s", cfg.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("shutting down")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown: %v", err)
+	}
+}

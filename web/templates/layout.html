@@ -1,0 +1,90 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem("theme") || "system";
+        var resolved = pref === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : pref;
+        document.documentElement.setAttribute("data-theme", resolved);
+      } catch (e) {}
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Projects, timesheets, and team chat in one place.">
+  <title>Worklane</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" id="theme-color-meta" content="#ffffff">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Worklane">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/js/vendor/frappe-gantt.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/vendor/htmx.min.js"></script>
+  <script src="/static/js/vendor/htmx-ext-ws.js"></script>
+  <script src="/static/js/vendor/alpine.min.js" defer></script>
+  <script src="/static/js/vendor/frappe-gantt.min.js"></script>
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="container">
+    {{template "content" .}}
+  </main>
+  <script>
+    (function () {
+      var path = location.pathname;
+      document.querySelectorAll(".nav-links a[href]").forEach(function (a) {
+        var href = a.getAttribute("href");
+        if (href !== "/" && path.indexOf(href) === 0) a.classList.add("active");
+      });
+    })();
+  </script>
+  <script>
+    (function () {
+      function apply(pref) {
+        var resolved = pref === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : pref;
+        document.documentElement.setAttribute("data-theme", resolved);
+        document.querySelectorAll(".theme-switch [data-theme-choice]").forEach(function (btn) {
+          btn.classList.toggle("active", btn.dataset.themeChoice === pref);
+        });
+        var meta = document.getElementById("theme-color-meta");
+        if (meta) meta.setAttribute("content", resolved === "dark" ? "#201e26" : "#ffffff");
+      }
+      var stored = localStorage.getItem("theme") || "system";
+      apply(stored);
+      document.querySelectorAll(".theme-switch [data-theme-choice]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          localStorage.setItem("theme", btn.dataset.themeChoice);
+          apply(btn.dataset.themeChoice);
+        });
+      });
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        if ((localStorage.getItem("theme") || "system") === "system") apply("system");
+      });
+    })();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js").catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
+{{end}}

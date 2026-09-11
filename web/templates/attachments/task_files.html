@@ -1,0 +1,14 @@
+<div id="task-files">
+{{if .}}
+<ul class="attachment-list">
+  {{range .}}
+  <li class="attachment-row">
+    <a href="/attachments/{{.ID}}/download">{{.Filename}}</a>
+    <span class="attachment-meta">{{.SizeDisplay}} &middot; {{.UploaderName}} &middot; {{.CreatedAt.Format "Jan 2"}}</span>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty-state">No files yet.</p>
+{{end}}
+</div>

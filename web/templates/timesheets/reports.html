@@ -1,0 +1,50 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Reports</h1>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Hours by project</h3>
+  {{if .ByProject}}
+    {{range .ByProject}}
+    <div class="bar-row">
+      <span class="bar-label">{{.ProjectName}}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:{{.Pct}}%;"></div></div>
+      <span class="bar-value">{{.Hours}}h</span>
+    </div>
+    {{end}}
+  {{else}}
+  <p class="empty-state">No hours logged yet.</p>
+  {{end}}
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Hours by person</h3>
+  {{if .ByPerson}}
+    {{range .ByPerson}}
+    <div class="bar-row">
+      <span class="bar-label">{{.UserName}}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:{{.Pct}}%;"></div></div>
+      <span class="bar-value">{{.Hours}}h</span>
+    </div>
+    {{end}}
+  {{else}}
+  <p class="empty-state">No hours logged yet.</p>
+  {{end}}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Hours by week</h3>
+  {{if .ByWeek}}
+    {{range .ByWeek}}
+    <div class="bar-row">
+      <span class="bar-label">{{.WeekStart.Format "Jan 2"}}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:{{.Pct}}%;"></div></div>
+      <span class="bar-value">{{.Hours}}h</span>
+    </div>
+    {{end}}
+  {{else}}
+  <p class="empty-state">No hours logged in the last 8 weeks.</p>
+  {{end}}
+</div>
+{{end}}

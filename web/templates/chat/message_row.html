@@ -1,0 +1,20 @@
+<div class="chat-message" hx-swap-oob="beforeend:#messages">
+  <div class="meta"><span class="author">{{.UserName}}</span> &middot; {{.CreatedAt.Format "15:04"}}</div>
+  {{if .Body}}<div class="body">{{.Body}}</div>{{end}}
+  {{if .HasAttachment}}
+    {{if .IsImage}}
+    <a href="/chat/messages/{{.ID}}/download" class="chat-attachment-image" target="_blank" rel="noopener">
+      <img src="/chat/messages/{{.ID}}/download" alt="{{.AttachmentFilename}}" loading="lazy">
+    </a>
+    {{else}}
+    <a href="/chat/messages/{{.ID}}/download" class="chat-attachment-file" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+      <span class="chat-attachment-meta">
+        <span class="chat-attachment-name">{{.AttachmentFilename}}</span>
+        <span class="chat-attachment-size">{{.AttachmentSizeDisplay}}</span>
+      </span>
+    </a>
+    {{end}}
+  {{end}}
+  <script>(function () { var b = document.getElementById("messages"); if (b) b.scrollTop = b.scrollHeight; })();</script>
+</div>

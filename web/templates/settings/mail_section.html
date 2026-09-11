@@ -1,0 +1,41 @@
+<div id="mail-settings" class="card" style="max-width:560px;">
+  <h3 style="margin-top:0;">Outbound mail</h3>
+  <p style="margin-top:-0.5rem; color:var(--text-muted);">
+    Configure the SMTP server used to email notifications (task assignments, comments, timesheet approvals) to users.
+    {{if .Mail.Configured}}Currently configured — emails send from <strong>{{.Mail.FromAddress}}</strong>.{{else}}Not configured yet — notifications stay in-app only until this is filled in.{{end}}
+  </p>
+
+  {{if .Message}}<p class="alert alert-success">{{.Message}}</p>{{end}}
+  {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+
+  <form hx-post="/settings/mail" hx-target="#mail-settings" hx-swap="outerHTML">
+    <label>SMTP host
+      <input type="text" name="smtp_host" value="{{.Mail.SMTPHost}}" placeholder="smtp.example.com">
+    </label>
+    <label>SMTP port
+      <input type="number" name="smtp_port" value="{{.Mail.SMTPPort}}" min="1" max="65535" required>
+    </label>
+    <label>Username
+      <input type="text" name="smtp_username" value="{{.Mail.Username}}" autocomplete="off">
+    </label>
+    <label>Password
+      <input type="password" name="smtp_password" autocomplete="new-password" placeholder="{{if .Mail.Password}}•••••••• (unchanged — leave blank to keep){{else}}(none){{end}}">
+    </label>
+    <label>From address
+      <input type="email" name="from_address" value="{{.Mail.FromAddress}}" placeholder="notifications@example.com">
+    </label>
+    <label>From name
+      <input type="text" name="from_name" value="{{.Mail.FromName}}" placeholder="Worklane">
+    </label>
+    <label style="display:flex; align-items:center; gap:0.5rem; width:auto;">
+      <input type="checkbox" name="use_tls" style="width:auto;" {{if .Mail.UseTLS}}checked{{end}}>
+      Use STARTTLS
+    </label>
+    <div style="display:flex; gap:0.6rem; margin-top:0.75rem;">
+      <button type="submit">Save</button>
+      <button type="submit" hx-post="/settings/mail/test" hx-target="#mail-settings" hx-swap="outerHTML" class="secondary" {{if not .Mail.Configured}}disabled{{end}}>Send test email</button>
+    </div>
+  </form>
+
+  {{if .Mail.UpdatedByName}}<p style="font-size:0.8rem; margin-bottom:0; color:var(--text-muted);">Last updated by {{.Mail.UpdatedByName}} on {{.Mail.UpdatedAt.Format "Jan 2, 2006 15:04"}}.</p>{{end}}
+</div>

@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="page-header">
+  <div>
+    <h1><a href="/projects" style="color:inherit;">Projects</a> / {{.Project.Name}}</h1>
+    {{if .Project.Description}}<p style="color:var(--text-muted);margin:0.25rem 0 0;">{{.Project.Description}}</p>{{end}}
+  </div>
+</div>
+
+{{template "members_section.html" .}}
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Files</summary>
+  <form hx-post="/projects/{{.Project.ID}}/attachments" hx-target="#project-files" hx-swap="outerHTML" hx-encoding="multipart/form-data" style="margin-top:1rem;">
+    <input type="file" name="file" required>
+    <button type="submit" style="margin-top:0.5rem;">Upload</button>
+  </form>
+  <div style="margin-top:1rem;">
+    {{template "project_files.html" .ProjectFiles}}
+  </div>
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New task</summary>
+  <form hx-post="/projects/{{.Project.ID}}/tasks?view={{.View}}" hx-target="#project-body" hx-swap="outerHTML" style="margin-top:1rem;">
+    <label>Name
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Description
+      <textarea name="description" rows="2"></textarea>
+    </label>
+    <label>Assignee
+      <select name="assignee_id">
+        <option value="">Unassigned</option>
+        {{range .Users}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Start date
+      <input type="date" name="start_date" required>
+    </label>
+    <label>End date
+      <input type="date" name="end_date" required>
+    </label>
+    {{if .Tasks}}
+    <label>Depends on
+      <select name="depends_on">
+        <option value="">None</option>
+        {{range .Tasks}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    {{end}}
+    <button type="submit">Add task</button>
+  </form>
+</details>
+
+{{template "project_body.html" .}}
+{{end}}

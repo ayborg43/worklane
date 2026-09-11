@@ -1,0 +1,39 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Timesheets</h1>
+  <div class="week-nav">
+    <a class="button secondary" href="/timesheets?week={{.PrevWeek}}">&larr; Prev</a>
+    <span class="week-nav-range">{{.WeekStart.Format "Jan 2"}} – {{.WeekEnd.Format "Jan 2, 2006"}}</span>
+    <a class="button secondary" href="/timesheets?week={{.NextWeek}}">Next &rarr;</a>
+  </div>
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Log time</summary>
+  <form hx-post="/timesheets" hx-target="#timesheet-body" hx-swap="outerHTML" style="margin-top:1rem;">
+    <label>Project
+      <select name="project_id" required onchange="htmx.ajax('GET', '/projects/' + this.value + '/tasks/options', {target: '#task_id', swap: 'innerHTML'})">
+        <option value="">Select a project…</option>
+        {{range .Projects}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Task (optional)
+      <select name="task_id" id="task_id">
+        <option value="">No specific task</option>
+      </select>
+    </label>
+    <label>Date
+      <input type="date" name="work_date" value="{{.WeekStart.Format "2006-01-02"}}" required>
+    </label>
+    <label>Hours
+      <input type="number" name="hours" step="0.25" min="0.25" max="24" required>
+    </label>
+    <label>Description
+      <input type="text" name="description">
+    </label>
+    <button type="submit">Log time</button>
+  </form>
+</details>
+
+{{template "week_body.html" .}}
+{{end}}

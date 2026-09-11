@@ -1,0 +1,27 @@
+<div id="notif-panel" class="notif-panel" hx-get="/notifications/panel" hx-trigger="every 30s" hx-swap="outerHTML" x-data="{open:false}" x-on:click.outside="open=false">
+  <button type="button" class="notif-bell" x-on:click="open=!open" aria-label="Notifications">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+    {{if .UnreadCount}}<span class="notif-badge notif-badge-bell">{{.UnreadCount}}</span>{{end}}
+  </button>
+  <div class="notif-dropdown" x-show="open" x-cloak>
+    {{if .Items}}
+    <div class="notif-dropdown-header">
+      <span>Recent</span>
+      <button type="button" hx-post="/notifications/read" hx-target="#notif-panel" hx-swap="outerHTML" class="link-button">Mark all read</button>
+    </div>
+    <ul class="notif-list">
+      {{range .Items}}
+      <li class="notif-item{{if not .ReadAt}} unread{{end}}">
+        <a href="{{.Link}}">{{.Body}}</a>
+        <span class="notif-time">{{.CreatedAt.Format "Jan 2, 15:04"}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="empty-state" style="padding:1rem;">No notifications yet.</p>
+    {{end}}
+  </div>
+</div>

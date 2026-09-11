@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="auth-shell">
+  <div class="auth-brand">
+    <span class="auth-brand-mark">W</span>
+    <h2>Worklane</h2>
+    <p>Projects, timesheets, and team chat in one place.</p>
+  </div>
+  <div class="card auth-card">
+    <h1>Create an account</h1>
+    {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+    <form method="post" action="/register">
+      <label>Name
+        <input type="text" name="name" value="{{.Name}}" required autofocus>
+      </label>
+      <label>Email
+        <input type="email" name="email" value="{{.Email}}" required>
+      </label>
+      <label>Password
+        <input type="password" name="password" minlength="8" required>
+      </label>
+      <button type="submit" style="width:100%;">Register</button>
+    </form>
+    <p class="auth-alt">Already have an account? <a href="/login">Log in</a></p>
+  </div>
+</div>
+{{end}}

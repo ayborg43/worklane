@@ -1,0 +1,37 @@
+{{define "content"}}
+<div class="page-header">
+  <div>
+    <h1><a href="/projects/{{.Project.ID}}" style="color:inherit;">{{.Project.Name}}</a> / {{.Task.Name}}</h1>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="task-summary">
+    <span class="kanban-assignee{{if not .Task.AssigneeName}} unassigned{{end}}">{{if .Task.AssigneeName}}{{.Task.AssigneeName}}{{else}}Unassigned{{end}}</span>
+    <span class="badge">{{.Task.Status}}</span>
+    <span class="kanban-dates">{{.Task.StartDate.Format "Jan 2"}}&ndash;{{.Task.EndDate.Format "Jan 2"}}</span>
+    <span>{{.Task.Progress}}% complete</span>
+  </div>
+  {{if .Task.Description}}<p style="color:var(--text-muted);margin-top:0.75rem;margin-bottom:0;">{{.Task.Description}}</p>{{end}}
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Files</summary>
+  <form hx-post="/projects/{{.Project.ID}}/tasks/{{.Task.ID}}/attachments" hx-target="#task-files" hx-swap="outerHTML" hx-encoding="multipart/form-data" style="margin-top:1rem;">
+    <input type="file" name="file" required>
+    <button type="submit" style="margin-top:0.5rem;">Upload</button>
+  </form>
+  <div style="margin-top:1rem;">
+    {{template "task_files.html" .Files}}
+  </div>
+</details>
+
+<div class="card">
+  <h3 style="margin-top:0;">Comments</h3>
+  {{template "comments_section.html" .Comments}}
+  <form hx-post="/projects/{{.Project.ID}}/tasks/{{.Task.ID}}/comments" hx-target="#task-comments" hx-swap="outerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" class="chat-form" style="margin-top:1rem;">
+    <input type="text" name="body" placeholder="Add a comment…" autocomplete="off" required>
+    <button type="submit">Comment</button>
+  </form>
+</div>
+{{end}}

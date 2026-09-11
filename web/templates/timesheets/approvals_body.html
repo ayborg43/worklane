@@ -1,0 +1,31 @@
+<div id="approvals-body">
+{{if .}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>User</th><th>Project</th><th>Date</th><th>Hours</th><th>Description</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td data-label="User">{{.UserName}}</td>
+        <td data-label="Project">{{.ProjectName}}</td>
+        <td data-label="Date">{{.WorkDate.Format "Mon, Jan 2"}}</td>
+        <td data-label="Hours">{{.Hours}}h</td>
+        <td data-label="Description">{{.Description}}</td>
+        <td data-label="Actions" class="approval-actions">
+          <button type="button" class="success" hx-post="/timesheets/{{.ID}}/approve" hx-target="#approvals-body" hx-swap="outerHTML">Approve</button>
+          <form hx-post="/timesheets/{{.ID}}/reject" hx-target="#approvals-body" hx-swap="outerHTML" class="approval-reject-form">
+            <input type="text" name="reason" placeholder="Reason" required>
+            <button type="submit" class="danger">Reject</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+{{else}}
+  <p class="empty-state">Nothing pending approval.</p>
+{{end}}
+</div>

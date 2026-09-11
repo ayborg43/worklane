@@ -1,0 +1,46 @@
+{{define "nav"}}
+<nav class="nav" x-data="{mobileOpen: false}" x-on:click.outside="mobileOpen = false">
+  <div class="nav-brand"><a href="/"><span class="nav-brand-mark">W</span>Worklane</a></div>
+  <button type="button" class="nav-toggle" x-on:click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen.toString()" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  </button>
+  {{if .CurrentUser}}
+  <div class="nav-links" :class="{ 'nav-links-open': mobileOpen }">
+    <a href="/projects">Projects</a>
+    <a href="/timesheets">Timesheets</a>
+    <a href="/timesheets/approvals">Approvals</a>
+    <a href="/reports">Reports</a>
+    <a href="/chat">Discuss <span id="chat-unread-badge" hx-get="/chat/unread-badge" hx-trigger="load, every 30s" hx-swap="outerHTML"></span></a>
+    <span class="nav-divider"></span>
+    <div id="notif-panel" hx-get="/notifications/panel" hx-trigger="load, every 30s" hx-swap="outerHTML"></div>
+    {{if .CurrentUser.IsAdmin}}<a href="/settings">Settings</a>{{end}}
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="light">Light</button>
+      <button type="button" data-theme-choice="dark">Dark</button>
+      <button type="button" data-theme-choice="system">System</button>
+    </div>
+    <span class="nav-user">
+      <span class="avatar">{{slice .CurrentUser.Name 0 1}}</span>
+      {{.CurrentUser.Name}}
+    </span>
+    <form method="post" action="/logout" class="inline-form">
+      <button type="submit" class="link-button">Log out</button>
+    </form>
+  </div>
+  {{else}}
+  <div class="nav-links" :class="{ 'nav-links-open': mobileOpen }">
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="light">Light</button>
+      <button type="button" data-theme-choice="dark">Dark</button>
+      <button type="button" data-theme-choice="system">System</button>
+    </div>
+    <a href="/login">Log in</a>
+    <a href="/register" class="button">Register</a>
+  </div>
+  {{end}}
+</nav>
+{{end}}

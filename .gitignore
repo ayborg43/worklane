@@ -1,0 +1,6 @@
+.env
+*.log
+/tmp/
+/data/
+.claude/settings.local.json
+.impeccable/

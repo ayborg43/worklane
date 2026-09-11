@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="auth-shell">
+  <div class="auth-brand">
+    <span class="auth-brand-mark">W</span>
+    <h2>Worklane</h2>
+    <p>Projects, timesheets, and team chat in one place.</p>
+  </div>
+  <div class="card auth-card">
+    <h1>Welcome back</h1>
+    {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+    <form method="post" action="/login">
+      <label>Email
+        <input type="email" name="email" value="{{.Email}}" required autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="password" required>
+      </label>
+      <button type="submit" style="width:100%;">Log in</button>
+    </form>
+    <p class="auth-alt">No account? <a href="/register">Register</a></p>
+  </div>
+</div>
+{{end}}

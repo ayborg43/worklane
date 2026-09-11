@@ -1,0 +1,166 @@
+<div id="project-body">
+{{if .Tasks}}
+  <div class="view-tabs">
+    <a href="/projects/{{.Project.ID}}?view=list" class="{{if eq .View "list"}}active{{end}}">List</a>
+    <a href="/projects/{{.Project.ID}}?view=board" class="{{if eq .View "board"}}active{{end}}">Board</a>
+    <a href="/projects/{{.Project.ID}}?view=gantt" class="{{if eq .View "gantt"}}active{{end}}">Gantt</a>
+  </div>
+
+  {{if eq .View "board"}}
+  <div class="kanban-board">
+    <div class="kanban-column">
+      <h4>To do <span class="kanban-count">{{len (index .TasksByStatus "todo")}}</span></h4>
+      <div class="kanban-cards" data-status="todo">
+        {{range index .TasksByStatus "todo"}}{{template "kanban_card" .}}{{end}}
+      </div>
+    </div>
+    <div class="kanban-column">
+      <h4>In progress <span class="kanban-count">{{len (index .TasksByStatus "in_progress")}}</span></h4>
+      <div class="kanban-cards" data-status="in_progress">
+        {{range index .TasksByStatus "in_progress"}}{{template "kanban_card" .}}{{end}}
+      </div>
+    </div>
+    <div class="kanban-column">
+      <h4>Done <span class="kanban-count">{{len (index .TasksByStatus "done")}}</span></h4>
+      <div class="kanban-cards" data-status="done">
+        {{range index .TasksByStatus "done"}}{{template "kanban_card" .}}{{end}}
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var projectID = {{.Project.ID}};
+      document.querySelectorAll(".kanban-card").forEach(function (card) {
+        card.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", card.dataset.taskId);
+          e.dataTransfer.effectAllowed = "move";
+          card.classList.add("dragging");
+        });
+        card.addEventListener("dragend", function () {
+          card.classList.remove("dragging");
+        });
+      });
+      document.querySelectorAll(".kanban-cards").forEach(function (zone) {
+        zone.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          zone.classList.add("drag-over");
+        });
+        zone.addEventListener("dragleave", function () {
+          zone.classList.remove("drag-over");
+        });
+        zone.addEventListener("drop", function (e) {
+          e.preventDefault();
+          zone.classList.remove("drag-over");
+          var taskID = e.dataTransfer.getData("text/plain");
+          if (!taskID) return;
+          htmx.ajax("PUT", "/projects/" + projectID + "/tasks/" + taskID + "?view=board", {
+            values: { status: zone.dataset.status },
+            target: "#project-body",
+            swap: "outerHTML",
+          });
+        });
+      });
+    })();
+  </script>
+
+  {{else if eq .View "gantt"}}
+  <div id="gantt"></div>
+  <script>
+    (function () {
+      var tasks = {{.GanttTasksJSON}};
+      if (!tasks.length) return;
+      function fmtDate(d) {
+        var mm = String(d.getMonth() + 1).padStart(2, "0");
+        var dd = String(d.getDate()).padStart(2, "0");
+        return d.getFullYear() + "-" + mm + "-" + dd;
+      }
+      new Gantt("#gantt", tasks, {
+        on_date_change: function (task, start, end) {
+          htmx.ajax("PUT", "/projects/{{.Project.ID}}/tasks/" + task.id + "?view=gantt", {
+            values: { start_date: fmtDate(start), end_date: fmtDate(end) },
+            target: "#project-body",
+            swap: "outerHTML",
+          });
+        },
+        on_progress_change: function (task, progress) {
+          htmx.ajax("PUT", "/projects/{{.Project.ID}}/tasks/" + task.id + "?view=gantt", {
+            values: { progress: progress },
+            target: "#project-body",
+            swap: "outerHTML",
+          });
+        },
+      });
+    })();
+  </script>
+
+  {{else}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>Task</th><th>Assignee</th><th>Start</th><th>End</th><th>Progress</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .Tasks}}
+      {{$taskID := .ID}}
+      {{$formID := printf "task-form-%d" $taskID}}
+      <form id="{{$formID}}" hx-put="/projects/{{$.Project.ID}}/tasks/{{$taskID}}?view=list" hx-target="#project-body" hx-swap="outerHTML"></form>
+      <tr>
+        <td data-label="Task">
+          <input form="{{$formID}}" type="text" name="name" value="{{.Name}}">
+          {{if .DependsOn}}
+          <div class="deps">
+            {{range .DependsOn}}
+            <span class="badge">depends on {{index $.TaskNames .}}
+              <button type="button" hx-delete="/projects/{{$.Project.ID}}/dependencies/{{$taskID}}/{{.}}?view=list" hx-target="#project-body" hx-swap="outerHTML" class="link-button">&times;</button>
+            </span>
+            {{end}}
+          </div>
+          {{end}}
+        </td>
+        <td data-label="Assignee">
+          <select form="{{$formID}}" name="assignee_id">
+            <option value="">Unassigned</option>
+            {{$assigneeID := .AssigneeID}}
+            {{range $.Users}}<option value="{{.ID}}" {{if eq .ID $assigneeID}}selected{{end}}>{{.Name}}</option>{{end}}
+          </select>
+        </td>
+        <td data-label="Start"><input form="{{$formID}}" type="date" name="start_date" value="{{.StartDate.Format "2006-01-02"}}"></td>
+        <td data-label="End"><input form="{{$formID}}" type="date" name="end_date" value="{{.EndDate.Format "2006-01-02"}}"></td>
+        <td data-label="Progress"><input form="{{$formID}}" type="number" name="progress" min="0" max="100" value="{{.Progress}}" style="width:4.5rem;"></td>
+        <td data-label="Status">
+          <select form="{{$formID}}" name="status">
+            {{$status := .Status}}
+            <option value="todo" {{if eq $status "todo"}}selected{{end}}>todo</option>
+            <option value="in_progress" {{if eq $status "in_progress"}}selected{{end}}>in progress</option>
+            <option value="done" {{if eq $status "done"}}selected{{end}}>done</option>
+          </select>
+        </td>
+        <td data-label="Actions" class="actions-cell">
+          <button form="{{$formID}}" type="submit">Save</button>
+          <a href="/projects/{{$.Project.ID}}/tasks/{{$taskID}}" class="link-button">Details</a>
+          <button type="button" hx-delete="/projects/{{$.Project.ID}}/tasks/{{$taskID}}?view=list" hx-target="#project-body" hx-swap="outerHTML" hx-confirm="Delete this task?" class="link-button">Delete</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{end}}
+
+{{else}}
+  <p class="empty-state">No tasks yet — add one above.</p>
+{{end}}
+</div>
+
+{{define "kanban_card"}}
+<div class="kanban-card" draggable="true" data-task-id="{{.ID}}">
+  <div class="kanban-card-title"><a href="/projects/{{.ProjectID}}/tasks/{{.ID}}">{{.Name}}</a></div>
+  <div class="kanban-card-meta">
+    <span class="kanban-assignee{{if not .AssigneeName}} unassigned{{end}}">{{if .AssigneeName}}{{.AssigneeName}}{{else}}Unassigned{{end}}</span>
+    <span class="kanban-dates">{{.StartDate.Format "Jan 2"}}&ndash;{{.EndDate.Format "Jan 2"}}</span>
+  </div>
+  {{if .Progress}}
+  <div class="kanban-progress"><div class="kanban-progress-fill" style="width:{{.Progress}}%;"></div></div>
+  {{end}}
+</div>
+{{end}}

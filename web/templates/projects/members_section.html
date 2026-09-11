@@ -1,0 +1,27 @@
+<div id="project-members" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Members</h3>
+  <ul class="member-list">
+    {{range .Members}}
+    <li class="member-row">
+      <span class="avatar">{{slice .Name 0 1}}</span>
+      <span>{{.Name}}</span>
+      {{if eq .ID $.Project.OwnerID}}<span class="badge">owner</span>{{end}}
+      {{if and (eq $.CurrentUser.ID $.Project.OwnerID) (ne .ID $.Project.OwnerID)}}
+      <button type="button" hx-delete="/projects/{{$.Project.ID}}/members/{{.ID}}" hx-target="#project-members" hx-swap="outerHTML" hx-confirm="Remove this member?" class="link-button">Remove</button>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{if eq .CurrentUser.ID .Project.OwnerID}}
+    {{if .NonMembers}}
+    <form hx-post="/projects/{{.Project.ID}}/members" hx-target="#project-members" hx-swap="outerHTML" class="member-add-form">
+      <select name="user_id" required>
+        {{range .NonMembers}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+      <button type="submit">Add member</button>
+    </form>
+    {{else}}
+    <p class="empty-state" style="padding:0.75rem 0;">Every registered user is already a member.</p>
+    {{end}}
+  {{end}}
+</div>
