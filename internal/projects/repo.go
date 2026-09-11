@@ -159,7 +159,8 @@ func (r *Repo) GetProject(ctx context.Context, id int64) (*Project, error) {
 const taskSelect = `
 	SELECT t.id, t.project_id, COALESCE(t.parent_task_id, 0), t.name, t.description,
 	       COALESCE(t.assignee_id, 0), COALESCE(u.name, ''), t.start_date, t.end_date,
-	       t.progress, t.status, t.sort_order, t.created_at, t.updated_at
+	       t.progress, t.status, t.sort_order, t.created_at, t.updated_at,
+	       COALESCE(t.recurrence_unit, ''), COALESCE(t.recurrence_interval, 0), t.recurrence_until
 	FROM tasks t
 	LEFT JOIN users u ON u.id = t.assignee_id`
 
@@ -167,7 +168,8 @@ func scanTask(row pgx.Row) (*Task, error) {
 	var t Task
 	err := row.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
 		&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
-		&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt)
+		&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt,
+		&t.RecurrenceUnit, &t.RecurrenceInterval, &t.RecurrenceUntil)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -177,24 +179,29 @@ func scanTask(row pgx.Row) (*Task, error) {
 	return &t, nil
 }
 
-func (r *Repo) ListTasks(ctx context.Context, projectID int64) ([]Task, error) {
-	rows, err := r.pool.Query(ctx, taskSelect+` WHERE t.project_id = $1 ORDER BY t.sort_order, t.start_date, t.id`, projectID)
-	if err != nil {
-		return nil, err
-	}
+func scanTasks(rows pgx.Rows) ([]Task, error) {
 	defer rows.Close()
-
 	var tasks []Task
 	for rows.Next() {
 		var t Task
 		if err := rows.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
 			&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
-			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt,
+			&t.RecurrenceUnit, &t.RecurrenceInterval, &t.RecurrenceUntil); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)
 	}
-	if err := rows.Err(); err != nil {
+	return tasks, rows.Err()
+}
+
+func (r *Repo) ListTasks(ctx context.Context, projectID int64) ([]Task, error) {
+	rows, err := r.pool.Query(ctx, taskSelect+` WHERE t.project_id = $1 ORDER BY t.sort_order, t.start_date, t.id`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	tasks, err := scanTasks(rows)
+	if err != nil {
 		return nil, err
 	}
 
@@ -220,19 +227,7 @@ func (r *Repo) ListTasksDueTodayUnnotified(ctx context.Context) ([]Task, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var tasks []Task
-	for rows.Next() {
-		var t Task
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
-			&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
-			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, t)
-	}
-	return tasks, rows.Err()
+	return scanTasks(rows)
 }
 
 func (r *Repo) MarkDueReminderSent(ctx context.Context, taskID int64) error {
@@ -253,19 +248,34 @@ func (r *Repo) ListTasksDueBetween(ctx context.Context, userID int64, from, to t
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return scanTasks(rows)
+}
 
-	var tasks []Task
-	for rows.Next() {
-		var t Task
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
-			&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
-			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, t)
+// ListSubtasks returns child tasks of parentTaskID, in the same sort_order
+// convention as ListTasks. Dependencies aren't loaded — subtasks shown on
+// the parent's detail page don't need their own dependency graph there.
+func (r *Repo) ListSubtasks(ctx context.Context, parentTaskID int64) ([]Task, error) {
+	rows, err := r.pool.Query(ctx, taskSelect+`
+		WHERE t.parent_task_id = $1 ORDER BY t.sort_order, t.start_date, t.id`, parentTaskID)
+	if err != nil {
+		return nil, err
 	}
-	return tasks, rows.Err()
+	return scanTasks(rows)
+}
+
+// SetRecurrence replaces a task's recurrence settings as a group — unit ==
+// "" clears all three columns back to NULL (turns recurrence off).
+func (r *Repo) SetRecurrence(ctx context.Context, taskID int64, unit string, interval int, until *time.Time) error {
+	var unitArg sql.NullString
+	var intervalArg sql.NullInt32
+	if unit != "" {
+		unitArg = sql.NullString{String: unit, Valid: true}
+		intervalArg = sql.NullInt32{Int32: int32(interval), Valid: true}
+	}
+	_, err := r.pool.Exec(ctx, `
+		UPDATE tasks SET recurrence_unit = $1, recurrence_interval = $2, recurrence_until = $3, updated_at = now()
+		WHERE id = $4`, unitArg, intervalArg, until, taskID)
+	return err
 }
 
 func (r *Repo) GetTask(ctx context.Context, id int64) (*Task, error) {
@@ -324,9 +334,9 @@ func (r *Repo) dependenciesForTask(ctx context.Context, taskID int64) ([]int64, 
 func (r *Repo) CreateTask(ctx context.Context, projectID int64, in TaskInput) (*Task, error) {
 	var id int64
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO tasks (project_id, name, description, assignee_id, start_date, end_date, progress, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-		projectID, in.Name, in.Description, nullInt64(in.AssigneeID), in.StartDate, in.EndDate, in.Progress, in.Status,
+		INSERT INTO tasks (project_id, parent_task_id, name, description, assignee_id, start_date, end_date, progress, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+		projectID, nullInt64(in.ParentTaskID), in.Name, in.Description, nullInt64(in.AssigneeID), in.StartDate, in.EndDate, in.Progress, in.Status,
 	).Scan(&id)
 	if err != nil {
 		return nil, err

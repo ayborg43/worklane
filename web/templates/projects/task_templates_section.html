@@ -1,0 +1,30 @@
+<div id="task-templates" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Task templates</h3>
+  {{if .Templates}}
+  <ul class="member-list">
+    {{range .Templates}}
+    <li class="member-row member-row-wrap">
+      <span>{{.Name}}</span>
+      <span style="color:var(--text-muted);font-size:0.82rem;">{{.DefaultDurationDays}}d{{if .DefaultAssigneeName}} &middot; {{.DefaultAssigneeName}}{{end}}</span>
+      <form hx-post="/projects/{{$.ProjectID}}/task-templates/{{.ID}}/use" hx-target="#project-body" hx-swap="outerHTML" style="display:flex; gap:0.4rem; align-items:center;">
+        <input type="date" name="start_date" required style="max-width:150px;">
+        <button type="submit">Use</button>
+      </form>
+      <button type="button" hx-delete="/projects/{{$.ProjectID}}/task-templates/{{.ID}}" hx-target="#task-templates" hx-swap="outerHTML" hx-confirm="Delete this template?" class="link-button">Delete</button>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No task templates yet.</p>
+  {{end}}
+  <form hx-post="/projects/{{.ProjectID}}/task-templates" hx-target="#task-templates" hx-swap="outerHTML" class="activity-add-form">
+    <input type="text" name="name" placeholder="Template name" required style="flex:1 1 160px; min-width:0;">
+    <input type="text" name="description" placeholder="Description (optional)" style="flex:1 1 160px; min-width:0;">
+    <input type="number" name="duration_days" placeholder="Days" min="1" value="1" style="max-width:80px;">
+    <select name="assignee_id" style="max-width:160px;">
+      <option value="">Unassigned</option>
+      {{range .Users}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select>
+    <button type="submit">Save template</button>
+  </form>
+</div>

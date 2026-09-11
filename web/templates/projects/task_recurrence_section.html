@@ -1,0 +1,23 @@
+<div id="task-recurrence" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Recurrence</h3>
+  {{if .Task.RecurrenceUnit}}
+  <p style="color:var(--text-muted);">
+    Repeats every {{.Task.RecurrenceInterval}} {{.Task.RecurrenceUnit}}(s){{if .Task.RecurrenceUntil}} until {{.Task.RecurrenceUntil.Format "Jan 2, 2006"}}{{end}}.
+    A new occurrence is created automatically when this task is marked done.
+  </p>
+  <button type="button" hx-post="/projects/{{.ProjectID}}/tasks/{{.TaskID}}/recurrence" hx-vals='{"unit": ""}' hx-target="#task-recurrence" hx-swap="outerHTML" class="link-button">Turn off recurrence</button>
+  {{else}}
+  <form hx-post="/projects/{{.ProjectID}}/tasks/{{.TaskID}}/recurrence" hx-target="#task-recurrence" hx-swap="outerHTML" class="activity-add-form">
+    <span>Repeat every</span>
+    <input type="number" name="interval" min="1" value="1" style="max-width:70px;">
+    <select name="unit" style="max-width:120px;">
+      <option value="day">day(s)</option>
+      <option value="week">week(s)</option>
+      <option value="month">month(s)</option>
+    </select>
+    <span>until (optional)</span>
+    <input type="date" name="until" style="max-width:160px;">
+    <button type="submit">Set recurrence</button>
+  </form>
+  {{end}}
+</div>

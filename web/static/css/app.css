@@ -600,9 +600,16 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   border-radius: var(--radius-sm);
   transition: background-color 120ms ease;
 }
+/* Modifier for rows that pack in more than a name + one action (e.g. task
+   templates: name, meta, an inline use-form, and a delete button) — plain
+   .member-row has no wrap since its other uses (Members, Subtasks) never
+   need it, and forcing wrap there is unnecessary churn to what's already
+   confirmed working. */
+.member-row-wrap { flex-wrap: wrap; }
+.member-row-wrap form { flex-wrap: wrap; }
 .member-row:hover { background: var(--surface-sunken); }
 .member-row .link-button { margin-left: auto; font-size: 0.82rem; }
-.member-add-form { display: flex; gap: 0.6rem; align-items: center; }
+.member-add-form { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .member-add-form select { margin-top: 0; max-width: 220px; }
 .member-add-form button { flex-shrink: 0; white-space: nowrap; }
 

@@ -1,0 +1,26 @@
+<div id="subtasks" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Subtasks</h3>
+  {{if .Subtasks}}
+  <ul class="member-list">
+    {{range .Subtasks}}
+    <li class="member-row">
+      <a href="/projects/{{.ProjectID}}/tasks/{{.ID}}">{{.Name}}</a>
+      <span class="badge">{{.Status}}</span>
+      {{if .AssigneeName}}<span style="color:var(--text-muted);font-size:0.82rem;">{{.AssigneeName}}</span>{{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No subtasks yet.</p>
+  {{end}}
+  <form hx-post="/projects/{{.ProjectID}}/tasks/{{.TaskID}}/subtasks" hx-target="#subtasks" hx-swap="outerHTML" class="activity-add-form">
+    <input type="text" name="name" placeholder="Subtask name" required style="flex:1 1 160px; min-width:0;">
+    <input type="date" name="start_date" required style="max-width:150px;">
+    <input type="date" name="end_date" required style="max-width:150px;">
+    <select name="assignee_id" style="max-width:160px;">
+      <option value="">Unassigned</option>
+      {{range .Users}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select>
+    <button type="submit">Add subtask</button>
+  </form>
+</div>

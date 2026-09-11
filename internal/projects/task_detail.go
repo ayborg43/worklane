@@ -16,6 +16,7 @@ type taskDetailData struct {
 	auth.PageData
 	Project    Project
 	Task       Task
+	ParentTask *Task
 	Comments   []Comment
 	Users      []auth.User
 	Files      []attachments.Attachment
@@ -23,6 +24,7 @@ type taskDetailData struct {
 	TaskID     int64
 	Members    []auth.User
 	Activities []activities.Activity
+	Subtasks   []Task
 }
 
 func (h *Handlers) ShowTask(w http.ResponseWriter, r *http.Request) {
@@ -74,11 +76,25 @@ func (h *Handlers) ShowTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	subtasks, err := h.Repo.ListSubtasks(r.Context(), taskID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	var parentTask *Task
+	if task.ParentTaskID != 0 {
+		parentTask, err = h.Repo.GetTask(r.Context(), task.ParentTaskID)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
 
 	h.Renderer.Render(w, http.StatusOK, "projects/task_detail.html", taskDetailData{
 		PageData:   auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
 		Project:    *project,
 		Task:       *task,
+		ParentTask: parentTask,
 		Comments:   comments,
 		Users:      users,
 		Files:      files,
@@ -86,7 +102,9 @@ func (h *Handlers) ShowTask(w http.ResponseWriter, r *http.Request) {
 		TaskID:     taskID,
 		Members:    members,
 		Activities: taskActivities,
-	}, "projects/comments_section.html", "attachments/task_files.html", "activities/task_activities.html")
+		Subtasks:   subtasks,
+	}, "projects/comments_section.html", "attachments/task_files.html", "activities/task_activities.html",
+		"projects/subtasks_section.html", "projects/task_recurrence_section.html")
 }
 
 func (h *Handlers) CreateComment(w http.ResponseWriter, r *http.Request) {

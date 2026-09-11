@@ -2,6 +2,7 @@
 <div class="page-header">
   <div>
     <h1><a href="/projects/{{.Project.ID}}" style="color:inherit;">{{.Project.Name}}</a> / {{.Task.Name}}</h1>
+    {{if .ParentTask}}<p style="color:var(--text-muted);margin:0.25rem 0 0;">Subtask of <a href="/projects/{{.Project.ID}}/tasks/{{.ParentTask.ID}}">{{.ParentTask.Name}}</a></p>{{end}}
   </div>
 </div>
 
@@ -14,6 +15,10 @@
   </div>
   {{if .Task.Description}}<p style="color:var(--text-muted);margin-top:0.75rem;margin-bottom:0;">{{.Task.Description}}</p>{{end}}
 </div>
+
+{{template "task_recurrence_section.html" .}}
+
+{{template "subtasks_section.html" .}}
 
 <details class="card" style="margin-bottom:1.5rem;">
   <summary>Files</summary>

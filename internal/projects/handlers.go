@@ -72,6 +72,11 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("DELETE /projects/{id}/members/{userID}", mw.RequireAuth(http.HandlerFunc(h.RemoveMember)))
 	mux.Handle("POST /projects/{id}/milestones", mw.RequireAuth(http.HandlerFunc(h.CreateMilestone)))
 	mux.Handle("DELETE /projects/{id}/milestones/{milestoneID}", mw.RequireAuth(http.HandlerFunc(h.DeleteMilestone)))
+	mux.Handle("POST /projects/{id}/tasks/{taskID}/subtasks", mw.RequireAuth(http.HandlerFunc(h.CreateSubtask)))
+	mux.Handle("POST /projects/{id}/tasks/{taskID}/recurrence", mw.RequireAuth(http.HandlerFunc(h.SetRecurrence)))
+	mux.Handle("POST /projects/{id}/task-templates", mw.RequireAuth(http.HandlerFunc(h.CreateTaskTemplate)))
+	mux.Handle("DELETE /projects/{id}/task-templates/{templateID}", mw.RequireAuth(http.HandlerFunc(h.DeleteTaskTemplate)))
+	mux.Handle("POST /projects/{id}/task-templates/{templateID}/use", mw.RequireAuth(http.HandlerFunc(h.UseTaskTemplate)))
 }
 
 // requireMember loads the project and 404s if the current user isn't a
@@ -125,6 +130,7 @@ type pageData struct {
 	ProjectID      int64
 	ProjectFiles   []attachments.Attachment
 	Activities     []activities.Activity
+	Templates      []TaskTemplate
 	TaskNames      map[int64]string
 	GanttTasksJSON template.JS
 	View           string
@@ -238,6 +244,11 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	templates, err := h.Repo.ListTaskTemplates(r.Context(), projectID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ganttJSON, err := BuildGanttTasksJSON(tasks)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -256,11 +267,12 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		ProjectID:      projectID,
 		ProjectFiles:   files,
 		Activities:     projectActivities,
+		Templates:      templates,
 		TaskNames:      taskNameLookup(tasks),
 		GanttTasksJSON: template.JS(ganttJSON),
 		View:           viewFromRequest(r),
 	}, "projects/project_body.html", "projects/members_section.html", "projects/milestones_section.html",
-		"attachments/project_files.html", "activities/project_activities.html")
+		"attachments/project_files.html", "activities/project_activities.html", "projects/task_templates_section.html")
 }
 
 func (h *Handlers) TaskOptions(w http.ResponseWriter, r *http.Request) {
@@ -423,6 +435,8 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 			log.Printf("notifications: create: %v", err)
 		}
 	}
+
+	h.spawnNextRecurrence(r.Context(), taskID, projectID, *current, in)
 
 	h.renderProjectBody(w, r, projectID)
 }
