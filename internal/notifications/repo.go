@@ -71,6 +71,8 @@ func kindLabel(kind string) string {
 	switch kind {
 	case "task_assigned":
 		return "Task assigned to you"
+	case "task_due":
+		return "Task due today"
 	case "timesheet_approved":
 		return "Timesheet entry approved"
 	case "timesheet_rejected":

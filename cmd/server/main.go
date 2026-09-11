@@ -133,6 +133,23 @@ func main() {
 		}
 	}()
 
+	// Due-date reminders: date-based (end_date = CURRENT_DATE) and gated by
+	// a sent-once flag, so a 15-minute cadence just controls how promptly a
+	// reminder fires after midnight — it's self-healing across restarts,
+	// not a precise scheduler.
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				projectsHandlers.NotifyDueTasks(ctx)
+			}
+		}
+	}()
+
 	go func() {
 		log.Printf("listening on %s", cfg.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

@@ -207,6 +207,38 @@ func (r *Repo) ListTasks(ctx context.Context, projectID int64) ([]Task, error) {
 	return tasks, nil
 }
 
+// ListTasksDueTodayUnnotified returns assigned, not-done tasks whose due
+// date is today and that haven't had a due-date reminder sent yet — the
+// due_reminder_sent_at flag makes each task's reminder fire exactly once no
+// matter how often the reminder scan runs.
+func (r *Repo) ListTasksDueTodayUnnotified(ctx context.Context) ([]Task, error) {
+	rows, err := r.pool.Query(ctx, taskSelect+`
+		WHERE t.end_date = CURRENT_DATE AND t.status <> 'done'
+		      AND t.assignee_id IS NOT NULL AND t.due_reminder_sent_at IS NULL
+		ORDER BY t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []Task
+	for rows.Next() {
+		var t Task
+		if err := rows.Scan(&t.ID, &t.ProjectID, &t.ParentTaskID, &t.Name, &t.Description,
+			&t.AssigneeID, &t.AssigneeName, &t.StartDate, &t.EndDate,
+			&t.Progress, &t.Status, &t.SortOrder, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, rows.Err()
+}
+
+func (r *Repo) MarkDueReminderSent(ctx context.Context, taskID int64) error {
+	_, err := r.pool.Exec(ctx, `UPDATE tasks SET due_reminder_sent_at = now() WHERE id = $1`, taskID)
+	return err
+}
+
 func (r *Repo) GetTask(ctx context.Context, id int64) (*Task, error) {
 	t, err := scanTask(r.pool.QueryRow(ctx, taskSelect+` WHERE t.id = $1`, id))
 	if err != nil {
@@ -274,9 +306,14 @@ func (r *Repo) CreateTask(ctx context.Context, projectID int64, in TaskInput) (*
 }
 
 func (r *Repo) UpdateTask(ctx context.Context, id int64, in TaskInput) (*Task, error) {
+	// Resetting due_reminder_sent_at whenever end_date actually changes means
+	// pushing a task's due date out (or back onto today) gets a fresh
+	// reminder rather than staying silenced by a reminder sent for a
+	// previous due date.
 	_, err := r.pool.Exec(ctx, `
 		UPDATE tasks SET name = $1, description = $2, assignee_id = $3, start_date = $4,
-		       end_date = $5, progress = $6, status = $7, updated_at = now()
+		       end_date = $5, progress = $6, status = $7, updated_at = now(),
+		       due_reminder_sent_at = CASE WHEN end_date <> $5 THEN NULL ELSE due_reminder_sent_at END
 		WHERE id = $8`,
 		in.Name, in.Description, nullInt64(in.AssigneeID), in.StartDate, in.EndDate, in.Progress, in.Status, id,
 	)

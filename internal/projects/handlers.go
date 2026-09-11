@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -26,6 +27,31 @@ type Handlers struct {
 
 func NewHandlers(repo *Repo, users *auth.Repo, attachmentsRepo *attachments.Repo, notificationsRepo *notifications.Repo, renderer *web.Renderer) *Handlers {
 	return &Handlers{Repo: repo, Users: users, Attachments: attachmentsRepo, Notifications: notificationsRepo, Renderer: renderer}
+}
+
+// NotifyDueTasks scans for assigned, not-done tasks whose due date is today
+// and haven't been reminded about yet, and notifies each assignee (in-app,
+// plus email if the admin has configured outbound mail) via the same
+// Notifications pipeline task-assignment and comment notifications already
+// use. Meant to be called periodically by a ticker in main.go — it takes no
+// http.Request, so it isn't wired as a route.
+func (h *Handlers) NotifyDueTasks(ctx context.Context) {
+	tasks, err := h.Repo.ListTasksDueTodayUnnotified(ctx)
+	if err != nil {
+		log.Printf("projects: list due tasks: %v", err)
+		return
+	}
+	for _, t := range tasks {
+		link := fmt.Sprintf("/projects/%d/tasks/%d", t.ProjectID, t.ID)
+		body := fmt.Sprintf("Task %q is due today", t.Name)
+		if err := h.Notifications.Create(ctx, t.AssigneeID, "task_due", body, link); err != nil {
+			log.Printf("projects: notify due task %d: %v", t.ID, err)
+			continue
+		}
+		if err := h.Repo.MarkDueReminderSent(ctx, t.ID); err != nil {
+			log.Printf("projects: mark due reminder sent for task %d: %v", t.ID, err)
+		}
+	}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
