@@ -53,6 +53,10 @@ func main() {
 	authMW := auth.NewMiddleware(authRepo)
 	authHandlers := auth.NewHandlers(authRepo, renderer, cfg.CookieSecure, time.Duration(cfg.SessionTTLDay)*24*time.Hour)
 
+	if err := authRepo.EnsureAdminExists(ctx); err != nil {
+		log.Fatalf("ensure admin exists: %v", err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

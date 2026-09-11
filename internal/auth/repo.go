@@ -33,12 +33,32 @@ func scanUser(row pgx.Row) (*User, error) {
 	return &u, nil
 }
 
+// CreateUser makes the very first registered user an admin — the
+// NOT EXISTS subquery is evaluated against the table's state before this
+// row is inserted, so it's true only when the table was empty going in.
+// This is what actually bootstraps an admin on a fresh database; migration
+// 0011's backfill only helps installs that already had users when it ran.
 func (r *Repo) CreateUser(ctx context.Context, email, name, passwordHash string) (*User, error) {
 	row := r.pool.QueryRow(ctx,
-		`INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING `+userColumns,
+		`INSERT INTO users (email, name, password_hash, is_admin)
+		 VALUES ($1, $2, $3, NOT EXISTS (SELECT 1 FROM users))
+		 RETURNING `+userColumns,
 		email, name, passwordHash,
 	)
 	return scanUser(row)
+}
+
+// EnsureAdminExists promotes the earliest-registered user to admin if no
+// admin currently exists. A self-healing safety net alongside CreateUser's
+// first-user-becomes-admin logic — covers any database that predates that
+// fix, or otherwise ends up with zero admins. Cheap enough to call once on
+// every server startup.
+func (r *Repo) EnsureAdminExists(ctx context.Context) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET is_admin = true
+		WHERE id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
+		  AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin = true)`)
+	return err
 }
 
 func (r *Repo) GetUserByEmail(ctx context.Context, email string) (*User, error) {

@@ -32,6 +32,34 @@ go run ./cmd/server           # applies migrations, listens on :8080
 
 Then open http://localhost:8080.
 
+## Deploying with Dokploy
+
+The repo ships a production `Dockerfile` and `docker-compose.prod.yml` (app +
+Postgres, with named volumes for the database and uploaded attachments).
+Migrations and the first-admin bootstrap run automatically on startup — no
+manual setup step required.
+
+1. In Dokploy, create a new **Application** of type **Docker Compose**,
+   point it at this repo, and set the compose file path to
+   `docker-compose.prod.yml`.
+2. In the app's **Environment** tab, set:
+   - `POSTGRES_PASSWORD` — required, no default
+   - `BASE_URL` — e.g. `https://worklane.yourdomain.com` (used to build
+     links in emailed notifications — task assignments, due-date reminders,
+     timesheet approvals)
+   - `POSTGRES_USER` / `POSTGRES_DB` — optional, default to `worklane`
+3. In **Domains**, point a domain at the `app` service, container port
+   `8080`. Dokploy handles TLS via Let's Encrypt.
+4. Deploy. Health check is `GET /health`.
+5. Register an account — the very first user to register is automatically
+   made an admin, unlocking **Settings → Mail** to configure real outbound
+   SMTP (or a catcher like Mailpit while testing).
+
+Postgres data and uploaded attachments persist across redeploys via the
+`db_data` and `app_data` named volumes. If you'd rather use Dokploy's
+built-in managed Postgres instead of the bundled `db` service, drop it from
+the compose file and point `DATABASE_URL` at that instance instead.
+
 ## Project layout
 
 - `cmd/server` — entrypoint, wires up all modules

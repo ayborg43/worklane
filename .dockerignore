@@ -1,0 +1,9 @@
+.git
+.env
+.env.example
+data/
+*.log
+.claude/
+.impeccable/
+soul.md
+README.md
