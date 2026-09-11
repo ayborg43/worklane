@@ -7,17 +7,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sociolytik/odoo-clone/internal/activities"
 	"github.com/sociolytik/odoo-clone/internal/attachments"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 )
 
 type taskDetailData struct {
 	auth.PageData
-	Project  Project
-	Task     Task
-	Comments []Comment
-	Users    []auth.User
-	Files    []attachments.Attachment
+	Project    Project
+	Task       Task
+	Comments   []Comment
+	Users      []auth.User
+	Files      []attachments.Attachment
+	ProjectID  int64
+	TaskID     int64
+	Members    []auth.User
+	Activities []activities.Activity
 }
 
 func (h *Handlers) ShowTask(w http.ResponseWriter, r *http.Request) {
@@ -59,15 +64,29 @@ func (h *Handlers) ShowTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	members, err := h.Repo.ListMembers(r.Context(), projectID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	taskActivities, err := h.Activities.ListForTask(r.Context(), taskID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	h.Renderer.Render(w, http.StatusOK, "projects/task_detail.html", taskDetailData{
-		PageData: auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
-		Project:  *project,
-		Task:     *task,
-		Comments: comments,
-		Users:    users,
-		Files:    files,
-	}, "projects/comments_section.html", "attachments/task_files.html")
+		PageData:   auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		Project:    *project,
+		Task:       *task,
+		Comments:   comments,
+		Users:      users,
+		Files:      files,
+		ProjectID:  projectID,
+		TaskID:     taskID,
+		Members:    members,
+		Activities: taskActivities,
+	}, "projects/comments_section.html", "attachments/task_files.html", "activities/task_activities.html")
 }
 
 func (h *Handlers) CreateComment(w http.ResponseWriter, r *http.Request) {

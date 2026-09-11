@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sociolytik/odoo-clone/internal/activities"
 	"github.com/sociolytik/odoo-clone/internal/attachments"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/notifications"
@@ -22,11 +23,12 @@ type Handlers struct {
 	Users         *auth.Repo
 	Attachments   *attachments.Repo
 	Notifications *notifications.Repo
+	Activities    *activities.Repo
 	Renderer      *web.Renderer
 }
 
-func NewHandlers(repo *Repo, users *auth.Repo, attachmentsRepo *attachments.Repo, notificationsRepo *notifications.Repo, renderer *web.Renderer) *Handlers {
-	return &Handlers{Repo: repo, Users: users, Attachments: attachmentsRepo, Notifications: notificationsRepo, Renderer: renderer}
+func NewHandlers(repo *Repo, users *auth.Repo, attachmentsRepo *attachments.Repo, notificationsRepo *notifications.Repo, activitiesRepo *activities.Repo, renderer *web.Renderer) *Handlers {
+	return &Handlers{Repo: repo, Users: users, Attachments: attachmentsRepo, Notifications: notificationsRepo, Activities: activitiesRepo, Renderer: renderer}
 }
 
 // NotifyDueTasks scans for assigned, not-done tasks whose due date is today
@@ -120,7 +122,9 @@ type pageData struct {
 	Members        []auth.User
 	NonMembers     []auth.User
 	Milestones     []Milestone
+	ProjectID      int64
 	ProjectFiles   []attachments.Attachment
+	Activities     []activities.Activity
 	TaskNames      map[int64]string
 	GanttTasksJSON template.JS
 	View           string
@@ -229,6 +233,11 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	projectActivities, err := h.Activities.ListForProject(r.Context(), projectID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ganttJSON, err := BuildGanttTasksJSON(tasks)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -244,11 +253,14 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		Members:        members,
 		NonMembers:     nonMembers,
 		Milestones:     milestones,
+		ProjectID:      projectID,
 		ProjectFiles:   files,
+		Activities:     projectActivities,
 		TaskNames:      taskNameLookup(tasks),
 		GanttTasksJSON: template.JS(ganttJSON),
 		View:           viewFromRequest(r),
-	}, "projects/project_body.html", "projects/members_section.html", "projects/milestones_section.html", "attachments/project_files.html")
+	}, "projects/project_body.html", "projects/members_section.html", "projects/milestones_section.html",
+		"attachments/project_files.html", "activities/project_activities.html")
 }
 
 func (h *Handlers) TaskOptions(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,37 @@
+<div id="project-activities" class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Activities</h3>
+  {{if .Activities}}
+  <ul class="activity-list">
+    {{range .Activities}}
+    <li class="activity-row{{if .IsOverdue}} activity-overdue{{end}}">
+      <span class="badge">{{.KindLabel}}</span>
+      <span class="activity-note">{{if .Note}}{{.Note}}{{else}}<span class="activity-no-note">No note</span>{{end}}</span>
+      <span class="activity-due">{{.DueDate.Format "Jan 2"}}{{if .IsOverdue}} &middot; overdue{{else if .IsDueToday}} &middot; today{{end}}</span>
+      <span class="activity-assignee">{{.AssignedToName}}</span>
+      {{if .DoneAt}}
+      <span class="activity-done-label">Done</span>
+      {{else if or (eq $.CurrentUser.ID .AssignedTo) (eq $.CurrentUser.ID .CreatedBy)}}
+      <button type="button" hx-post="/activities/{{.ID}}/done" hx-target="#project-activities" hx-swap="outerHTML" class="link-button">Mark done</button>
+      <button type="button" hx-delete="/activities/{{.ID}}" hx-target="#project-activities" hx-swap="outerHTML" hx-confirm="Cancel this activity?" class="link-button">Cancel</button>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No activities scheduled.</p>
+  {{end}}
+  <form hx-post="/projects/{{.ProjectID}}/activities" hx-target="#project-activities" hx-swap="outerHTML" class="activity-add-form">
+    <select name="kind" required>
+      <option value="call">Call</option>
+      <option value="meeting">Meeting</option>
+      <option value="todo">To-do</option>
+      <option value="email">Email</option>
+    </select>
+    <input type="text" name="note" placeholder="Note (optional)">
+    <input type="date" name="due_date" required>
+    <select name="assigned_to" required>
+      {{range .Members}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select>
+    <button type="submit">Schedule</button>
+  </form>
+</div>

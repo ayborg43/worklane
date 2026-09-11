@@ -737,6 +737,36 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
 .attachment-row a { font-weight: 600; }
 .attachment-meta { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
 
+/* ---------- activities ---------- */
+
+/* flex + wrap from the start (not a fixed grid needing a separate mobile
+   fallback) — rows just reflow onto multiple lines on a narrow viewport. */
+.activity-list { list-style: none; margin: 0 0 0.9rem; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.activity-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.activity-row.activity-overdue { border-color: var(--danger); background: var(--danger-bg); }
+.activity-note { flex: 1 1 160px; min-width: 0; }
+.activity-no-note { color: var(--text-faint); font-style: italic; }
+.activity-due { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; }
+.activity-overdue .activity-due { color: var(--danger); font-weight: 600; }
+.activity-assignee { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; }
+.activity-done-label { color: var(--success); font-size: 0.82rem; font-weight: 600; }
+.activity-row .link-button { font-size: 0.82rem; white-space: nowrap; }
+.activity-context-link { flex: 1 1 200px; min-width: 0; font-weight: 600; }
+
+.activity-add-form { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.activity-add-form select, .activity-add-form input[type="date"] { margin-top: 0; width: auto; max-width: 160px; }
+.activity-add-form input[type="text"] { margin-top: 0; flex: 1 1 160px; min-width: 0; }
+.activity-add-form button { flex-shrink: 0; white-space: nowrap; }
+
 /* ---------- reports ---------- */
 
 .bar-row {

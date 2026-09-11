@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/sociolytik/odoo-clone/internal/activities"
 	"github.com/sociolytik/odoo-clone/internal/attachments"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/calendar"
@@ -97,12 +98,17 @@ func main() {
 	notificationsHandlers := notifications.NewHandlers(notificationsRepo, renderer)
 	notificationsHandlers.MountRoutes(mux, authMW)
 
+	activitiesRepo := activities.NewRepo(pool)
+
 	projectsRepo := projects.NewRepo(pool)
-	projectsHandlers := projects.NewHandlers(projectsRepo, authRepo, attachmentsRepo, notificationsRepo, renderer)
+	projectsHandlers := projects.NewHandlers(projectsRepo, authRepo, attachmentsRepo, notificationsRepo, activitiesRepo, renderer)
 	projectsHandlers.MountRoutes(mux, authMW)
 
 	attachmentsHandlers := attachments.NewHandlers(attachmentsRepo, projectsRepo, renderer, attachmentsDir)
 	attachmentsHandlers.MountRoutes(mux, authMW)
+
+	activitiesHandlers := activities.NewHandlers(activitiesRepo, projectsRepo, notificationsRepo, renderer)
+	activitiesHandlers.MountRoutes(mux, authMW)
 
 	timesheetsRepo := timesheets.NewRepo(pool)
 	timesheetsHandlers := timesheets.NewHandlers(timesheetsRepo, projectsRepo, notificationsRepo, renderer)
@@ -154,6 +160,7 @@ func main() {
 				return
 			case <-ticker.C:
 				projectsHandlers.NotifyDueTasks(ctx)
+				activitiesHandlers.NotifyDueActivities(ctx)
 			}
 		}
 	}()

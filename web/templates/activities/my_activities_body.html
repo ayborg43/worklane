@@ -1,0 +1,19 @@
+<div id="activities-body">
+{{if .Activities}}
+<ul class="activity-list">
+  {{range .Activities}}
+  <li class="activity-row{{if .IsOverdue}} activity-overdue{{end}}">
+    <span class="badge">{{.KindLabel}}</span>
+    <a href="{{if .TaskID}}/projects/{{.ProjectID}}/tasks/{{.TaskID}}{{else}}/projects/{{.ProjectID}}{{end}}" class="activity-context-link">
+      {{if .Note}}{{.Note}}{{else}}{{.ProjectName}}{{if .TaskName}} / {{.TaskName}}{{end}}{{end}}
+    </a>
+    <span class="activity-due">{{.DueDate.Format "Jan 2"}}{{if .IsOverdue}} &middot; overdue{{else if .IsDueToday}} &middot; today{{end}}</span>
+    <button type="button" hx-post="/activities/{{.ID}}/done?view=mine" hx-target="#activities-body" hx-swap="outerHTML" class="link-button">Mark done</button>
+    <button type="button" hx-delete="/activities/{{.ID}}?view=mine" hx-target="#activities-body" hx-swap="outerHTML" hx-confirm="Cancel this activity?" class="link-button">Cancel</button>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty-state">Nothing scheduled — you're all caught up.</p>
+{{end}}
+</div>
