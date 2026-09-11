@@ -1,0 +1,133 @@
+<div id="crm-page">
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New opportunity</summary>
+  <form hx-post="/crm/opportunities" hx-target="#crm-page" hx-swap="outerHTML" style="margin-top:1rem;">
+    <label>Name
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Contact
+      <select name="contact_id">
+        <option value="">None</option>
+        {{range .Contacts}}<option value="{{.ID}}">{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
+      </select>
+    </label>
+    <label>Owner
+      <select name="owner_id" required>
+        {{range .Users}}<option value="{{.ID}}" {{if eq .ID $.CurrentUser.ID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Value ($)
+      <input type="number" name="value_amount" min="0" step="0.01">
+    </label>
+    <label>Expected close date
+      <input type="date" name="expected_close_date">
+    </label>
+    <label>Stage
+      <select name="stage_id" required>
+        {{range .Stages}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <button type="submit">Add opportunity</button>
+  </form>
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Manage stages</summary>
+  <ul class="member-list" style="margin-top:1rem;">
+    {{range .Stages}}
+    <li class="member-row member-row-wrap">
+      <span>{{.Name}}</span>
+      {{if .IsWon}}<span class="badge badge-approved">won stage</span>{{end}}
+      <button type="button" hx-post="/crm/stages/{{.ID}}/move-up" hx-target="#crm-page" hx-swap="outerHTML" class="link-button">Up</button>
+      <button type="button" hx-post="/crm/stages/{{.ID}}/move-down" hx-target="#crm-page" hx-swap="outerHTML" class="link-button">Down</button>
+      <button type="button" hx-delete="/crm/stages/{{.ID}}" hx-target="#crm-page" hx-swap="outerHTML" hx-confirm="Delete this stage? Only possible when it has no opportunities." class="link-button">Delete</button>
+    </li>
+    {{end}}
+  </ul>
+  <form hx-post="/crm/stages" hx-target="#crm-page" hx-swap="outerHTML" class="activity-add-form" style="margin-top:0.75rem;">
+    <input type="text" name="name" placeholder="Stage name" required style="flex:1 1 160px; min-width:0;">
+    <button type="submit">Add stage</button>
+  </form>
+</details>
+
+<div class="kanban-board-fluid">
+  {{range .Stages}}
+  <div class="kanban-column">
+    <h4>{{.Name}} <span class="kanban-count">{{len (index $.OpportunitiesByStage .ID)}}</span></h4>
+    {{$total := index $.StageTotals .ID}}
+    {{if $total}}<div style="font-size:0.72rem; color:var(--text-muted); margin:-0.5rem 0 0.75rem;">${{printf "%.0f" $total}}</div>{{end}}
+    <div class="kanban-cards" data-stage-id="{{.ID}}">
+      {{range index $.OpportunitiesByStage .ID}}{{template "opportunity_card" .}}{{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+
+{{if .ShowLost}}
+<div class="card" style="margin-top:1.5rem;">
+  <h3 style="margin-top:0;">Lost opportunities</h3>
+  {{if .LostOpportunities}}
+  <ul class="member-list">
+    {{range .LostOpportunities}}
+    <li class="member-row member-row-wrap">
+      <a href="/crm/opportunities/{{.ID}}">{{.Name}}</a>
+      <span class="badge badge-rejected">lost</span>
+      {{if .LostReason}}<span style="color:var(--text-muted); font-size:0.82rem;">{{.LostReason}}</span>{{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No lost opportunities.</p>
+  {{end}}
+</div>
+{{end}}
+
+<script>
+  (function () {
+    document.querySelectorAll("#crm-page .kanban-card").forEach(function (card) {
+      card.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", card.dataset.oppId);
+        e.dataTransfer.effectAllowed = "move";
+        card.classList.add("dragging");
+      });
+      card.addEventListener("dragend", function () {
+        card.classList.remove("dragging");
+      });
+    });
+    document.querySelectorAll("#crm-page .kanban-cards").forEach(function (zone) {
+      zone.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        zone.classList.add("drag-over");
+      });
+      zone.addEventListener("dragleave", function () {
+        zone.classList.remove("drag-over");
+      });
+      zone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        var oppID = e.dataTransfer.getData("text/plain");
+        if (!oppID) return;
+        htmx.ajax("PUT", "/crm/opportunities/" + oppID, {
+          values: { stage_id: zone.dataset.stageId },
+          target: "#crm-page",
+          swap: "outerHTML",
+        });
+      });
+    });
+  })();
+</script>
+</div>
+
+{{define "opportunity_card"}}
+<div class="kanban-card" draggable="true" data-opp-id="{{.ID}}">
+  <div class="kanban-card-title"><a href="/crm/opportunities/{{.ID}}">{{.Name}}</a></div>
+  <div class="kanban-card-meta">
+    <span class="kanban-assignee{{if not .ContactName}} unassigned{{end}}">{{if .ContactName}}{{.ContactName}}{{else}}No contact{{end}}</span>
+    <span class="kanban-dates">${{printf "%.0f" .ValueAmount}}</span>
+  </div>
+  <div class="kanban-card-meta" style="margin-top:0.3rem;">
+    <span class="kanban-assignee">{{.OwnerName}}</span>
+    {{if .ExpectedCloseDate}}<span class="kanban-dates">{{.ExpectedCloseDate.Format "Jan 2"}}</span>{{end}}
+  </div>
+</div>
+{{end}}

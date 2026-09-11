@@ -1,0 +1,57 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/crm" style="color:inherit;">CRM Pipeline</a> / {{.Opportunity.Name}}</h1>
+</div>
+
+<div id="opportunity-detail" class="card" style="margin-bottom:1.5rem;">
+  {{if .Opportunity.IsLost}}<p class="alert alert-error">Marked lost{{if .Opportunity.LostReason}}: {{.Opportunity.LostReason}}{{end}}</p>{{end}}
+  <form hx-put="/crm/opportunities/{{.Opportunity.ID}}?from=detail" hx-target="#opportunity-detail" hx-swap="outerHTML">
+    <label>Name
+      <input type="text" name="name" value="{{.Opportunity.Name}}" required>
+    </label>
+    <label>Contact
+      <select name="contact_id">
+        <option value="">None</option>
+        {{$contactID := .Opportunity.ContactID}}
+        {{range .Contacts}}<option value="{{.ID}}" {{if eq .ID $contactID}}selected{{end}}>{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
+      </select>
+    </label>
+    <label>Owner
+      <select name="owner_id" required>
+        {{$ownerID := .Opportunity.OwnerID}}
+        {{range .Users}}<option value="{{.ID}}" {{if eq .ID $ownerID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Stage
+      <select name="stage_id" required>
+        {{$stageID := .Opportunity.StageID}}
+        {{range .Stages}}<option value="{{.ID}}" {{if eq .ID $stageID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Value ($)
+      <input type="number" name="value_amount" min="0" step="0.01" value="{{.Opportunity.ValueAmount}}">
+    </label>
+    <label>Expected close date
+      <input type="date" name="expected_close_date" value="{{if .Opportunity.ExpectedCloseDate}}{{.Opportunity.ExpectedCloseDate.Format "2006-01-02"}}{{end}}">
+    </label>
+    <button type="submit">Save</button>
+  </form>
+
+  <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center; margin-top:1rem;">
+    {{if not .Opportunity.IsLost}}
+    <button type="button" hx-post="/crm/opportunities/{{.Opportunity.ID}}/won?from=detail" hx-target="#opportunity-detail" hx-swap="outerHTML" class="success">Mark won</button>
+    {{end}}
+    <button type="button" hx-delete="/crm/opportunities/{{.Opportunity.ID}}?from=detail" hx-confirm="Delete this opportunity?" class="link-button">Delete</button>
+  </div>
+
+  {{if not .Opportunity.IsLost}}
+  <details style="margin-top:0.75rem;">
+    <summary style="font-size:0.85rem;color:var(--text-muted);cursor:pointer;">Mark lost</summary>
+    <form hx-post="/crm/opportunities/{{.Opportunity.ID}}/lost?from=detail" hx-target="#opportunity-detail" hx-swap="outerHTML" style="margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:0.6rem;">
+      <input type="text" name="reason" placeholder="Reason (optional)" style="flex:1 1 200px; min-width:0;">
+      <button type="submit" class="danger">Mark lost</button>
+    </form>
+  </details>
+  {{end}}
+</div>
+{{end}}

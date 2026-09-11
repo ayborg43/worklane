@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/crm" style="color:inherit;">CRM Pipeline</a> / Contacts</h1>
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New contact</summary>
+  <form hx-post="/crm/contacts" hx-target="#contacts-body" hx-swap="outerHTML" hx-on::after-request="if (event.detail.successful) this.reset()" style="margin-top:1rem;">
+    <label>Name
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Company
+      <input type="text" name="company">
+    </label>
+    <label>Email
+      <input type="email" name="email">
+    </label>
+    <label>Phone
+      <input type="text" name="phone">
+    </label>
+    <button type="submit">Add contact</button>
+  </form>
+</details>
+
+{{template "contacts_body.html" .Contacts}}
+{{end}}

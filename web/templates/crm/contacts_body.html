@@ -1,0 +1,30 @@
+<div id="contacts-body">
+{{if .}}
+<div class="table-scroll">
+<table class="responsive-table">
+  <thead>
+    <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th></th></tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    {{$contactID := .ID}}
+    {{$formID := printf "contact-form-%d" $contactID}}
+    <form id="{{$formID}}" hx-put="/crm/contacts/{{$contactID}}" hx-target="#contacts-body" hx-swap="outerHTML"></form>
+    <tr>
+      <td data-label="Name"><input form="{{$formID}}" type="text" name="name" value="{{.Name}}"></td>
+      <td data-label="Company"><input form="{{$formID}}" type="text" name="company" value="{{.Company}}"></td>
+      <td data-label="Email"><input form="{{$formID}}" type="email" name="email" value="{{.Email}}"></td>
+      <td data-label="Phone"><input form="{{$formID}}" type="text" name="phone" value="{{.Phone}}"></td>
+      <td data-label="Actions" class="actions-cell">
+        <button form="{{$formID}}" type="submit">Save</button>
+        <button type="button" hx-delete="/crm/contacts/{{$contactID}}" hx-target="#contacts-body" hx-swap="outerHTML" hx-confirm="Delete this contact?" class="link-button">Delete</button>
+      </td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="empty-state">No contacts yet.</p>
+{{end}}
+</div>

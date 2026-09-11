@@ -1,0 +1,11 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>CRM Pipeline</h1>
+  <div class="week-nav">
+    <a href="/crm/contacts" class="button secondary">Contacts</a>
+    {{if .ShowLost}}<a href="/crm" class="button secondary">Hide lost</a>{{else}}<a href="/crm?lost=1" class="button secondary">Show lost</a>{{end}}
+  </div>
+</div>
+
+{{template "pipeline_body.html" .}}
+{{end}}

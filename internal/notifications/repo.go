@@ -77,6 +77,8 @@ func kindLabel(kind string) string {
 		return "Activity scheduled for you"
 	case "activity_due":
 		return "Activity due today"
+	case "opportunity_assigned":
+		return "Opportunity assigned to you"
 	case "timesheet_approved":
 		return "Timesheet entry approved"
 	case "timesheet_rejected":
