@@ -1,0 +1,52 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Welcome, {{.Contact.Name}}</h1>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Your support tickets</h3>
+  {{if .Tickets}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead><tr><th>Subject</th><th>Priority</th><th>Status</th><th>Opened</th></tr></thead>
+    <tbody>
+      {{range .Tickets}}
+      <tr>
+        <td data-label="Subject"><a href="/portal/tickets/{{.ID}}">{{.Subject}}</a></td>
+        <td data-label="Priority" style="text-transform:capitalize;">{{.Priority}}</td>
+        <td data-label="Status"><span class="badge{{if eq .Status "resolved"}} badge-approved{{else if eq .Status "in_progress"}} badge-submitted{{end}}">{{.Status}}</span></td>
+        <td data-label="Opened">{{.CreatedAt.Format "Jan 2, 2006"}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <p class="empty-state">No support tickets yet.</p>
+  {{end}}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Your invoices</h3>
+  {{if .Invoices}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead><tr><th>Invoice</th><th>Project</th><th>Period</th><th>Status</th><th>Amount</th></tr></thead>
+    <tbody>
+      {{range .Invoices}}
+      <tr>
+        <td data-label="Invoice"><a href="/portal/invoices/{{.ID}}">{{.Number}}</a></td>
+        <td data-label="Project">{{.ProjectName}}</td>
+        <td data-label="Period">{{.PeriodStart.Format "Jan 2"}} &ndash; {{.PeriodEnd.Format "Jan 2, 2006"}}</td>
+        <td data-label="Status"><span class="badge{{if eq .Status "paid"}} badge-approved{{else if eq .Status "sent"}} badge-submitted{{end}}">{{.Status}}</span></td>
+        <td data-label="Amount">${{printf "%.2f" .TotalAmount}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <p class="empty-state">No invoices yet.</p>
+  {{end}}
+</div>
+{{end}}

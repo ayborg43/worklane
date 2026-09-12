@@ -1,0 +1,40 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem("theme") || "system";
+        var resolved = pref === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : pref;
+        document.documentElement.setAttribute("data-theme", resolved);
+      } catch (e) {}
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Worklane Customer Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-brand"><span class="nav-brand-mark">W</span>Worklane <span style="color:var(--text-muted); font-weight:500;">&middot; Customer Portal</span></div>
+    {{if .Contact}}
+    <div class="portal-nav-actions">
+      <span class="nav-user">{{.Contact.Name}}</span>
+      <form method="post" action="/portal/logout" class="inline-form">
+        <button type="submit" class="link-button">Log out</button>
+      </form>
+    </div>
+    {{end}}
+  </nav>
+  <main class="container">
+    {{template "content" .}}
+  </main>
+</body>
+</html>
+{{end}}

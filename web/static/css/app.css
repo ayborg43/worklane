@@ -682,6 +682,13 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   .responsive-table td[data-label="Actions"] > * { flex: none; }
 }
 
+/* ---------- customer portal ---------- */
+/* Deliberately its own class, not .nav-links: that class is display:none
+   by default under 640px, only ever revealed by the internal app's
+   hamburger-toggle JS, which the portal's minimal nav doesn't have (and
+   doesn't need — it's only ever two items). */
+.portal-nav-actions { display: flex; align-items: center; gap: 0.9rem; }
+
 /* ---------- dashboard ---------- */
 
 .dashboard-kpi-card { display: flex; flex-direction: column; gap: 0.3rem; }

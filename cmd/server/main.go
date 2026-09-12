@@ -23,6 +23,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/helpdesk"
 	"github.com/sociolytik/odoo-clone/internal/invoicing"
 	"github.com/sociolytik/odoo-clone/internal/notifications"
+	"github.com/sociolytik/odoo-clone/internal/portal"
 	"github.com/sociolytik/odoo-clone/internal/projects"
 	"github.com/sociolytik/odoo-clone/internal/search"
 	"github.com/sociolytik/odoo-clone/internal/settings"
@@ -140,6 +141,11 @@ func main() {
 	searchHandlers := search.NewHandlers(searchRepo, renderer)
 	searchHandlers.MountRoutes(mux, authMW)
 
+	portalRepo := portal.NewRepo(pool)
+	portalMW := portal.NewMiddleware(portalRepo)
+	portalHandlers := portal.NewHandlers(portalRepo, settingsRepo, renderer, cfg.BaseURL, cfg.CookieSecure)
+	portalHandlers.MountRoutes(mux, authMW, portalMW)
+
 	chatHub := chat.NewHub()
 	go chatHub.Run()
 	chatRepo := chat.NewRepo(pool)
@@ -165,6 +171,12 @@ func main() {
 			case <-ticker.C:
 				if err := authRepo.DeleteExpiredSessions(ctx); err != nil {
 					log.Printf("cleanup expired sessions: %v", err)
+				}
+				if err := portalRepo.DeleteExpiredSessions(ctx); err != nil {
+					log.Printf("cleanup expired portal sessions: %v", err)
+				}
+				if err := portalRepo.DeleteExpiredMagicLinks(ctx); err != nil {
+					log.Printf("cleanup expired portal magic links: %v", err)
 				}
 			}
 		}

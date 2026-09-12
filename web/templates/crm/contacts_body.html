@@ -17,7 +17,9 @@
       <td data-label="Phone"><input form="{{$formID}}" type="text" name="phone" value="{{.Phone}}"></td>
       <td data-label="Actions" class="actions-cell">
         <button form="{{$formID}}" type="submit">Save</button>
+        <button type="button" hx-post="/portal/send-link/{{$contactID}}" hx-target="#portal-status-{{$contactID}}" hx-swap="innerHTML" class="link-button">Send portal link</button>
         <button type="button" hx-delete="/crm/contacts/{{$contactID}}" hx-target="#contacts-body" hx-swap="outerHTML" hx-confirm="Delete this contact?" class="link-button">Delete</button>
+        <span id="portal-status-{{$contactID}}" style="display:block; font-size:0.78rem; color:var(--text-muted); margin-top:0.3rem;"></span>
       </td>
     </tr>
     {{end}}

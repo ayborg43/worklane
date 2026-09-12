@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/portal" style="color:inherit;">Portal</a> / {{.Ticket.Subject}}</h1>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <p style="margin-top:0;">
+    <span class="badge{{if eq .Ticket.Status "resolved"}} badge-approved{{else if eq .Ticket.Status "in_progress"}} badge-submitted{{end}}">{{.Ticket.Status}}</span>
+    <span class="badge" style="text-transform:capitalize;">{{.Ticket.Priority}} priority</span>
+  </p>
+  {{if .Ticket.ResolvedAt}}<p class="alert alert-success">Resolved {{.Ticket.ResolvedAt.Format "Jan 2, 2006 15:04"}}</p>{{end}}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Updates</h3>
+  {{if .Comments}}
+    {{range .Comments}}
+    <div class="chat-message">
+      <div class="meta"><span class="author">{{.UserName}}</span> &middot; {{.CreatedAt.Format "Jan 2, 15:04"}}</div>
+      <div class="body">{{.Body}}</div>
+    </div>
+    {{end}}
+  {{else}}
+  <p class="empty-state">No updates yet.</p>
+  {{end}}
+</div>
+{{end}}

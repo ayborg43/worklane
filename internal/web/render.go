@@ -26,9 +26,16 @@ func NewRenderer(dir string) *Renderer {
 // writing status and the result to w. page is relative to the templates dir,
 // e.g. "auth/login.html".
 func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any, extraPartials ...string) error {
+	return r.RenderWithLayout(w, status, "layout.html", page, data, append([]string{filepath.Join("partials", "nav.html")}, extraPartials...)...)
+}
+
+// RenderWithLayout is Render with the layout file itself as a parameter
+// instead of always assuming layout.html+partials/nav.html — the customer
+// portal uses this with its own portal/layout.html so external contacts
+// never see the internal app's nav.
+func (r *Renderer) RenderWithLayout(w http.ResponseWriter, status int, layout, page string, data any, extraPartials ...string) error {
 	files := []string{
-		filepath.Join(r.dir, "layout.html"),
-		filepath.Join(r.dir, "partials", "nav.html"),
+		filepath.Join(r.dir, layout),
 		filepath.Join(r.dir, page),
 	}
 	for _, p := range extraPartials {

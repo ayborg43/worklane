@@ -14,6 +14,19 @@
   <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0;">Applied to every approved, billable timesheet entry included in a generated invoice.</p>
 </div>
 
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Client contact</h3>
+  <form method="post" action="/projects/{{.ProjectID}}/invoices/contact" class="activity-add-form">
+    {{$contactID := .ContactID}}
+    <select name="contact_id">
+      <option value="">No client contact</option>
+      {{range .Contacts}}<option value="{{.ID}}" {{if eq .ID $contactID}}selected{{end}}>{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
+    </select>
+    <button type="submit">Save</button>
+  </form>
+  <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0;">The customer portal shows this project's invoices only to its linked contact.</p>
+</div>
+
 <details class="card" style="margin-bottom:1.5rem;" {{if .Error}}open{{end}}>
   <summary>Generate invoice</summary>
   {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}

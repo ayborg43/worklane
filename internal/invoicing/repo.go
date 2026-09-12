@@ -2,6 +2,7 @@ package invoicing
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -39,21 +40,67 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 // This keeps invoicing fully decoupled at the Go level (no import cycle
 // risk at all) while still sharing the underlying schema.
 
-func (r *Repo) ProjectInfo(ctx context.Context, projectID int64) (name string, ownerID int64, rate float64, err error) {
-	err = r.pool.QueryRow(ctx, `SELECT name, owner_id, billable_rate FROM projects WHERE id = $1`, projectID).
-		Scan(&name, &ownerID, &rate)
+func (r *Repo) ProjectInfo(ctx context.Context, projectID int64) (name string, ownerID int64, rate float64, contactID int64, err error) {
+	var contact sql.NullInt64
+	err = r.pool.QueryRow(ctx, `SELECT name, owner_id, billable_rate, contact_id FROM projects WHERE id = $1`, projectID).
+		Scan(&name, &ownerID, &rate, &contact)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", 0, 0, ErrNotFound
+			return "", 0, 0, 0, ErrNotFound
 		}
-		return "", 0, 0, err
+		return "", 0, 0, 0, err
 	}
-	return name, ownerID, rate, nil
+	return name, ownerID, rate, contact.Int64, nil
 }
 
 func (r *Repo) SetBillableRate(ctx context.Context, projectID int64, rate float64) error {
 	_, err := r.pool.Exec(ctx, `UPDATE projects SET billable_rate = $1, updated_at = now() WHERE id = $2`, rate, projectID)
 	return err
+}
+
+// SetContact assigns (or, when contactID is 0, clears) the project's client
+// contact — the one CRM contact whose customer portal will see this
+// project's invoices.
+func (r *Repo) SetContact(ctx context.Context, projectID, contactID int64) error {
+	_, err := r.pool.Exec(ctx, `UPDATE projects SET contact_id = $1, updated_at = now() WHERE id = $2`,
+		nullInt64(contactID), projectID)
+	return err
+}
+
+func nullInt64(v int64) sql.NullInt64 {
+	if v == 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: v, Valid: true}
+}
+
+// ---------- CRM contacts (read-only, for the "client contact" dropdown) ----------
+//
+// ContactOption reads the contacts table directly rather than importing
+// crm.Repo — same one-directional "query another package's table for a
+// narrow need" precedent helpdesk.Repo.ListContacts already sets.
+type ContactOption struct {
+	ID      int64
+	Name    string
+	Company string
+}
+
+func (r *Repo) ListContactOptions(ctx context.Context) ([]ContactOption, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, name, company FROM contacts ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ContactOption
+	for rows.Next() {
+		var c ContactOption
+		if err := rows.Scan(&c.ID, &c.Name, &c.Company); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 // ---------- invoices ----------
@@ -174,7 +221,7 @@ func (r *Repo) billableUninvoiced(ctx context.Context, projectID int64, from, to
 // needs stays entirely inside this method, so callers never have to think
 // about it and the stored period_end always matches what was requested.
 func (r *Repo) GenerateInvoice(ctx context.Context, projectID, createdBy int64, periodStart, periodEnd time.Time) (*Invoice, error) {
-	_, _, rate, err := r.ProjectInfo(ctx, projectID)
+	_, _, rate, _, err := r.ProjectInfo(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}

@@ -27,31 +27,32 @@ func NewHandlers(repo *Repo, renderer *web.Renderer) *Handlers {
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /projects/{id}/invoices", mw.RequireAuth(http.HandlerFunc(h.Index)))
 	mux.Handle("POST /projects/{id}/invoices/rate", mw.RequireAuth(http.HandlerFunc(h.SetRate)))
+	mux.Handle("POST /projects/{id}/invoices/contact", mw.RequireAuth(http.HandlerFunc(h.SetContact)))
 	mux.Handle("POST /projects/{id}/invoices", mw.RequireAuth(http.HandlerFunc(h.Generate)))
 	mux.Handle("GET /invoices/{id}", mw.RequireAuth(http.HandlerFunc(h.Show)))
 	mux.Handle("POST /invoices/{id}/status", mw.RequireAuth(http.HandlerFunc(h.SetStatus)))
 	mux.Handle("DELETE /invoices/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
 }
 
-// requireOwner loads the project's owner/name/rate and 404s anyone else —
-// invoicing has no separate view-only membership tier, see the Handlers
-// doc comment.
-func (h *Handlers) requireOwner(w http.ResponseWriter, r *http.Request, projectID int64) (name string, rate float64, ok bool) {
-	name, ownerID, rate, err := h.Repo.ProjectInfo(r.Context(), projectID)
+// requireOwner loads the project's owner/name/rate/contact and 404s anyone
+// else — invoicing has no separate view-only membership tier, see the
+// Handlers doc comment.
+func (h *Handlers) requireOwner(w http.ResponseWriter, r *http.Request, projectID int64) (name string, rate float64, contactID int64, ok bool) {
+	name, ownerID, rate, contactID, err := h.Repo.ProjectInfo(r.Context(), projectID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			http.NotFound(w, r)
-			return "", 0, false
+			return "", 0, 0, false
 		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
-		return "", 0, false
+		return "", 0, 0, false
 	}
 	user := auth.UserFromContext(r.Context())
 	if user.ID != ownerID {
 		http.NotFound(w, r)
-		return "", 0, false
+		return "", 0, 0, false
 	}
-	return name, rate, true
+	return name, rate, contactID, true
 }
 
 type indexData struct {
@@ -59,6 +60,8 @@ type indexData struct {
 	ProjectID    int64
 	ProjectName  string
 	BillableRate float64
+	ContactID    int64
+	Contacts     []ContactOption
 	Invoices     []Invoice
 	Error        string
 }
@@ -69,7 +72,7 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	projectName, rate, ok := h.requireOwner(w, r, projectID)
+	projectName, rate, contactID, ok := h.requireOwner(w, r, projectID)
 	if !ok {
 		return
 	}
@@ -78,15 +81,22 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	h.render(w, r, projectID, projectName, rate, invoices, "")
+	h.render(w, r, projectID, projectName, rate, contactID, invoices, "")
 }
 
-func (h *Handlers) render(w http.ResponseWriter, r *http.Request, projectID int64, projectName string, rate float64, invoices []Invoice, errMsg string) {
+func (h *Handlers) render(w http.ResponseWriter, r *http.Request, projectID int64, projectName string, rate float64, contactID int64, invoices []Invoice, errMsg string) {
+	contacts, err := h.Repo.ListContactOptions(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	h.Renderer.Render(w, http.StatusOK, "invoicing/index.html", indexData{
 		PageData:     auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
 		ProjectID:    projectID,
 		ProjectName:  projectName,
 		BillableRate: rate,
+		ContactID:    contactID,
+		Contacts:     contacts,
 		Invoices:     invoices,
 		Error:        errMsg,
 	})
@@ -98,7 +108,7 @@ func (h *Handlers) SetRate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if _, _, ok := h.requireOwner(w, r, projectID); !ok {
+	if _, _, _, ok := h.requireOwner(w, r, projectID); !ok {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -117,13 +127,46 @@ func (h *Handlers) SetRate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/projects/"+strconv.FormatInt(projectID, 10)+"/invoices", http.StatusSeeOther)
 }
 
+// SetContact assigns which CRM contact is this project's "client" — the one
+// whose customer portal sees its invoices. Uses a plain native form (not
+// htmx) in the template, same as the "Generate invoice" form on this same
+// page, sidestepping any question of how an htmx-driven POST should handle
+// a full-page redirect response.
+func (h *Handlers) SetContact(w http.ResponseWriter, r *http.Request) {
+	projectID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, _, _, ok := h.requireOwner(w, r, projectID); !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	var contactID int64
+	if v := r.FormValue("contact_id"); v != "" {
+		contactID, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid contact", http.StatusBadRequest)
+			return
+		}
+	}
+	if err := h.Repo.SetContact(r.Context(), projectID, contactID); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/projects/"+strconv.FormatInt(projectID, 10)+"/invoices", http.StatusSeeOther)
+}
+
 func (h *Handlers) Generate(w http.ResponseWriter, r *http.Request) {
 	projectID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	projectName, rate, ok := h.requireOwner(w, r, projectID)
+	projectName, rate, contactID, ok := h.requireOwner(w, r, projectID)
 	if !ok {
 		return
 	}
@@ -154,7 +197,7 @@ func (h *Handlers) Generate(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
-			h.render(w, r, projectID, projectName, rate, invoices, "No billable, approved hours in that period.")
+			h.render(w, r, projectID, projectName, rate, contactID, invoices, "No billable, approved hours in that period.")
 			return
 		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -183,7 +226,7 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
+	if _, _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
 		return
 	}
 	h.Renderer.Render(w, http.StatusOK, "invoicing/detail.html", showData{
@@ -209,7 +252,7 @@ func (h *Handlers) SetStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
+	if _, _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -243,7 +286,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
+	if _, _, _, ok := h.requireOwner(w, r, inv.ProjectID); !ok {
 		return
 	}
 	if err := h.Repo.Delete(r.Context(), id); err != nil {
