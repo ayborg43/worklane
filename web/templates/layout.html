@@ -6,10 +6,13 @@
   <script>
     (function () {
       try {
-        var pref = localStorage.getItem("theme") || "system";
-        var resolved = pref === "system"
-          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-          : pref;
+        // No stored preference means "follow the OS setting" — the toggle
+        // only ever writes an explicit "light" or "dark" once clicked, so a
+        // literal "system" here can only be a leftover value from before
+        // the three-way Light/Dark/System switch became a single icon.
+        var stored = localStorage.getItem("theme");
+        if (stored === "system") stored = null;
+        var resolved = stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
         document.documentElement.setAttribute("data-theme", resolved);
       } catch (e) {}
     })();
@@ -54,27 +57,33 @@
   </script>
   <script>
     (function () {
-      function apply(pref) {
-        var resolved = pref === "system"
-          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-          : pref;
-        document.documentElement.setAttribute("data-theme", resolved);
-        document.querySelectorAll(".theme-switch [data-theme-choice]").forEach(function (btn) {
-          btn.classList.toggle("active", btn.dataset.themeChoice === pref);
-        });
+      function apply(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
         var meta = document.getElementById("theme-color-meta");
-        if (meta) meta.setAttribute("content", resolved === "dark" ? "#201e26" : "#ffffff");
+        if (meta) meta.setAttribute("content", theme === "dark" ? "#201e26" : "#ffffff");
+        document.querySelectorAll(".theme-toggle").forEach(function (btn) {
+          btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+        });
       }
-      var stored = localStorage.getItem("theme") || "system";
-      apply(stored);
-      document.querySelectorAll(".theme-switch [data-theme-choice]").forEach(function (btn) {
+      // A stored value means the visitor explicitly picked a theme via the
+      // toggle; its absence means "keep following the OS setting" — same
+      // resolution the pre-paint script in <head> already did, repeated
+      // here since that one only sets the data-theme attribute and never
+      // wires up ongoing behavior (the meta color, the OS-change listener,
+      // the click handler).
+      var stored = localStorage.getItem("theme");
+      if (stored === "system") stored = null;
+      apply(stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+
+      document.querySelectorAll(".theme-toggle").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          localStorage.setItem("theme", btn.dataset.themeChoice);
-          apply(btn.dataset.themeChoice);
+          var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+          localStorage.setItem("theme", next);
+          apply(next);
         });
       });
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-        if ((localStorage.getItem("theme") || "system") === "system") apply("system");
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
+        if (!localStorage.getItem("theme")) apply(e.matches ? "dark" : "light");
       });
     })();
   </script>
