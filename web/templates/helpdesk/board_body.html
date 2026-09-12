@@ -1,0 +1,108 @@
+<div id="helpdesk-board">
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New ticket</summary>
+  <form hx-post="/helpdesk/tickets" hx-target="#helpdesk-board" hx-swap="outerHTML" style="margin-top:1rem;">
+    <label>Subject
+      <input type="text" name="subject" required autofocus>
+    </label>
+    <label>Description
+      <textarea name="description" rows="2"></textarea>
+    </label>
+    <label>Contact (CRM)
+      <select name="contact_id">
+        <option value="">None</option>
+        {{range .Contacts}}<option value="{{.ID}}">{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
+      </select>
+    </label>
+    <label>Customer name (if no CRM contact)
+      <input type="text" name="customer_name">
+    </label>
+    <label>Customer email
+      <input type="email" name="customer_email">
+    </label>
+    <label>Assignee
+      <select name="assignee_id">
+        <option value="">Unassigned</option>
+        {{range .Users}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Priority
+      <select name="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </label>
+    <button type="submit">Create ticket</button>
+  </form>
+</details>
+
+<div class="kanban-board">
+  <div class="kanban-column">
+    <h4>Open <span class="kanban-count">{{len (index .TicketsByStatus "open")}}</span></h4>
+    <div class="kanban-cards" data-status="open">
+      {{range index .TicketsByStatus "open"}}{{template "ticket_card" .}}{{end}}
+    </div>
+  </div>
+  <div class="kanban-column">
+    <h4>In progress <span class="kanban-count">{{len (index .TicketsByStatus "in_progress")}}</span></h4>
+    <div class="kanban-cards" data-status="in_progress">
+      {{range index .TicketsByStatus "in_progress"}}{{template "ticket_card" .}}{{end}}
+    </div>
+  </div>
+  <div class="kanban-column">
+    <h4>Resolved <span class="kanban-count">{{len (index .TicketsByStatus "resolved")}}</span></h4>
+    <div class="kanban-cards" data-status="resolved">
+      {{range index .TicketsByStatus "resolved"}}{{template "ticket_card" .}}{{end}}
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    document.querySelectorAll("#helpdesk-board .kanban-card").forEach(function (card) {
+      card.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", card.dataset.ticketId);
+        e.dataTransfer.effectAllowed = "move";
+        card.classList.add("dragging");
+      });
+      card.addEventListener("dragend", function () {
+        card.classList.remove("dragging");
+      });
+    });
+    document.querySelectorAll("#helpdesk-board .kanban-cards").forEach(function (zone) {
+      zone.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        zone.classList.add("drag-over");
+      });
+      zone.addEventListener("dragleave", function () {
+        zone.classList.remove("drag-over");
+      });
+      zone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        var ticketID = e.dataTransfer.getData("text/plain");
+        if (!ticketID) return;
+        htmx.ajax("PUT", "/helpdesk/tickets/" + ticketID, {
+          values: { status: zone.dataset.status },
+          target: "#helpdesk-board",
+          swap: "outerHTML",
+        });
+      });
+    });
+  })();
+</script>
+</div>
+
+{{define "ticket_card"}}
+<div class="kanban-card" draggable="true" data-ticket-id="{{.ID}}">
+  <div class="kanban-card-title"><a href="/helpdesk/tickets/{{.ID}}">{{.Subject}}</a></div>
+  <div class="kanban-card-meta">
+    <span>{{.RequesterLabel}}</span>
+    <span class="badge{{if eq .Priority "high"}} badge-rejected{{else if eq .Priority "medium"}} badge-submitted{{end}}">{{.Priority}}</span>
+  </div>
+  <div class="kanban-card-meta" style="margin-top:0.3rem;">
+    <span class="kanban-assignee{{if not .AssigneeName}} unassigned{{end}}">{{if .AssigneeName}}{{.AssigneeName}}{{else}}Unassigned{{end}}</span>
+  </div>
+</div>
+{{end}}

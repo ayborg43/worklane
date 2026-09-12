@@ -1,0 +1,12 @@
+<div id="ticket-comments">
+{{if .}}
+  {{range .}}
+  <div class="chat-message">
+    <div class="meta"><span class="author">{{.UserName}}</span> &middot; {{.CreatedAt.Format "Jan 2, 15:04"}}</div>
+    <div class="body">{{.Body}}</div>
+  </div>
+  {{end}}
+{{else}}
+  <p class="empty-state">No comments yet.</p>
+{{end}}
+</div>

@@ -12,15 +12,20 @@
   <div class="nav-links" :class="{ 'nav-links-open': mobileOpen }">
     <a href="/projects">Projects</a>
     <a href="/crm">CRM</a>
+    <a href="/helpdesk">Helpdesk</a>
     <a href="/timesheets">Timesheets</a>
-    <a href="/timesheets/approvals">Approvals</a>
     <!-- Desktop: grouped behind "More" so the nav still fits at common
-         laptop widths (~1280px) now that there are enough top-level
-         sections to otherwise collide with the brand mark — see
-         .nav-more-mobile-link below for why these links appear twice. -->
+         laptop/tablet widths (~1024-1280px) now that there are enough
+         top-level sections to otherwise collide with the brand mark —
+         see .nav-more-mobile-link below for why these links appear
+         twice. Approvals joined this group (rather than Projects/CRM/
+         Helpdesk/Timesheets) because it's the most occasional-use view
+         here, on par with Reports/Calendar/Activities rather than a
+         primary daily work surface. -->
     <div class="nav-more" x-data="{open:false}" x-on:click.outside="open=false">
       <button type="button" class="nav-more-trigger" x-on:click="open=!open" :aria-expanded="open.toString()">More</button>
       <div class="nav-more-dropdown" x-show="open" x-cloak>
+        <a href="/timesheets/approvals">Approvals</a>
         <a href="/reports">Reports</a>
         <a href="/calendar">Calendar</a>
         <a href="/activities">Activities</a>
@@ -33,6 +38,7 @@
          display:none on .nav-more-dropdown when closed, which would beat
          any stylesheet override, so this is a separate, always-flat set
          of links rather than trying to force the same nodes to show. -->
+    <a href="/timesheets/approvals" class="nav-more-mobile-link">Approvals</a>
     <a href="/reports" class="nav-more-mobile-link">Reports</a>
     <a href="/calendar" class="nav-more-mobile-link">Calendar</a>
     <a href="/activities" class="nav-more-mobile-link">Activities</a>

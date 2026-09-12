@@ -19,6 +19,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/config"
 	"github.com/sociolytik/odoo-clone/internal/crm"
 	"github.com/sociolytik/odoo-clone/internal/db"
+	"github.com/sociolytik/odoo-clone/internal/helpdesk"
 	"github.com/sociolytik/odoo-clone/internal/invoicing"
 	"github.com/sociolytik/odoo-clone/internal/notifications"
 	"github.com/sociolytik/odoo-clone/internal/projects"
@@ -124,6 +125,10 @@ func main() {
 	wikiRepo := wiki.NewRepo(pool)
 	wikiHandlers := wiki.NewHandlers(wikiRepo, projectsRepo, renderer)
 	wikiHandlers.MountRoutes(mux, authMW)
+
+	helpdeskRepo := helpdesk.NewRepo(pool)
+	helpdeskHandlers := helpdesk.NewHandlers(helpdeskRepo, authRepo, notificationsRepo, renderer)
+	helpdeskHandlers.MountRoutes(mux, authMW)
 
 	calendarHandlers := calendar.NewHandlers(projectsRepo, timesheetsRepo, renderer)
 	calendarHandlers.MountRoutes(mux, authMW)

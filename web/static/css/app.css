@@ -143,7 +143,20 @@ a:hover { text-decoration: underline; }
   font-weight: 800;
   font-size: 0.9rem;
 }
-.nav-links { display: flex; align-items: center; gap: 1.15rem; }
+/* flex-wrap (not nowrap) is the actual fix for nav overflow at "tablet
+   laptop" widths (~900-1150px) — rather than re-tuning exactly which
+   items live in .nav-more every time a new top-level section is added
+   (a moving target that broke three times in a row as features shipped),
+   letting the row wrap to a second line means there's no width at which
+   this can overflow or visibly collide with the brand mark, independent
+   of how many items end up here in the future. justify-content:flex-end
+   keeps a short second line pinned to the right, matching the row's own
+   alignment, instead of drifting to the left. */
+/* min-width: 0 overrides the flex item default of min-width: auto, which
+   otherwise refuses to shrink a flex item below its content's natural
+   width — exactly what was silently blocking flex-wrap from ever
+   kicking in above. */
+.nav-links { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.6rem 1.15rem; min-width: 0; flex: 1 1 auto; }
 .nav-links a { color: var(--text-muted); font-weight: 600; font-size: 0.89rem; transition: color 150ms ease; }
 .nav-links a:hover { color: var(--text); text-decoration: none; }
 .nav-links a.active:not(.button) { color: var(--primary); }

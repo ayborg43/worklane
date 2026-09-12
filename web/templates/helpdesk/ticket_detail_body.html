@@ -1,0 +1,51 @@
+<div id="ticket-detail" class="card" style="margin-bottom:1.5rem;">
+  {{if .Ticket.ResolvedAt}}<p class="alert alert-success">Resolved {{.Ticket.ResolvedAt.Format "Jan 2, 2006 15:04"}}</p>{{end}}
+  <form hx-put="/helpdesk/tickets/{{.Ticket.ID}}?from=detail" hx-target="#ticket-detail" hx-swap="outerHTML">
+    <label>Subject
+      <input type="text" name="subject" value="{{.Ticket.Subject}}" required>
+    </label>
+    <label>Description
+      <textarea name="description" rows="4">{{.Ticket.Description}}</textarea>
+    </label>
+    <label>Contact (CRM)
+      <select name="contact_id">
+        <option value="">None</option>
+        {{$contactID := .Ticket.ContactID}}
+        {{range .Contacts}}<option value="{{.ID}}" {{if eq .ID $contactID}}selected{{end}}>{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
+      </select>
+    </label>
+    <label>Customer name
+      <input type="text" name="customer_name" value="{{.Ticket.CustomerName}}">
+    </label>
+    <label>Customer email
+      <input type="email" name="customer_email" value="{{.Ticket.CustomerEmail}}">
+    </label>
+    <label>Assignee
+      <select name="assignee_id">
+        <option value="">Unassigned</option>
+        {{$assigneeID := .Ticket.AssigneeID}}
+        {{range .Users}}<option value="{{.ID}}" {{if eq .ID $assigneeID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Priority
+      {{$priority := .Ticket.Priority}}
+      <select name="priority">
+        <option value="low" {{if eq $priority "low"}}selected{{end}}>Low</option>
+        <option value="medium" {{if eq $priority "medium"}}selected{{end}}>Medium</option>
+        <option value="high" {{if eq $priority "high"}}selected{{end}}>High</option>
+      </select>
+    </label>
+    <label>Status
+      {{$status := .Ticket.Status}}
+      <select name="status">
+        <option value="open" {{if eq $status "open"}}selected{{end}}>Open</option>
+        <option value="in_progress" {{if eq $status "in_progress"}}selected{{end}}>In progress</option>
+        <option value="resolved" {{if eq $status "resolved"}}selected{{end}}>Resolved</option>
+      </select>
+    </label>
+    <button type="submit">Save</button>
+  </form>
+  <div style="margin-top:1rem;">
+    <button type="button" hx-delete="/helpdesk/tickets/{{.Ticket.ID}}?from=detail" hx-confirm="Delete this ticket?" class="link-button">Delete</button>
+  </div>
+</div>
