@@ -1,9 +1,12 @@
 package settings
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/web"
@@ -24,6 +27,8 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("POST /settings/mail", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateMail))))
 	mux.Handle("POST /settings/mail/test", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.TestMail))))
 	mux.Handle("POST /settings/access/{userID}/{module}/toggle", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.ToggleModuleAccess))))
+	mux.Handle("POST /settings/users", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.CreateUser))))
+	mux.Handle("POST /settings/access/{userID}/password", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.SetPassword))))
 }
 
 type settingsData struct {
@@ -35,9 +40,11 @@ type settingsData struct {
 	// Populated only for the full-page Show render and the User Access
 	// fragment re-render — the mail-section fragment renders never touch
 	// these, so renderSection leaves them at zero value.
-	Users        []auth.User
-	Modules      []string
-	ModuleLabels map[string]string
+	Users         []auth.User
+	Modules       []string
+	ModuleLabels  map[string]string
+	AccessMessage string
+	AccessError   string
 }
 
 func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
@@ -179,17 +186,99 @@ func (h *Handlers) ToggleModuleAccess(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.renderUserAccessSection(w, r, "", "")
+}
 
+// CreateUser lets an admin add a user directly (name, email, password)
+// without that person self-registering — same validation rule as
+// auth.Handlers.Register (password length, duplicate-email conflict), just
+// reachable from Settings instead of a logged-out /register form. The new
+// account is a regular (non-admin) user; admin status is granted
+// separately (ADMIN_EMAIL, or a direct SQL promotion) and deliberately
+// isn't a checkbox here.
+func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	email := strings.TrimSpace(strings.ToLower(r.FormValue("email")))
+	password := r.FormValue("password")
+
+	if name == "" || email == "" || len(password) < 8 {
+		h.renderUserAccessSection(w, r, "", "Name, email, and a password of at least 8 characters are required.")
+		return
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if _, err := h.Users.CreateUser(r.Context(), email, name, hash); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			h.renderUserAccessSection(w, r, "", "An account with that email already exists.")
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderUserAccessSection(w, r, "User created.", "")
+}
+
+// SetPassword lets an admin overwrite a user's password directly (a
+// forgotten-password reset, or standing in for someone who hasn't set one
+// up yet). Every existing session for that user is invalidated in the same
+// action — otherwise a session cookie issued under the old password would
+// keep working indefinitely, which defeats the point of a reset done
+// because the old credential is no longer trusted.
+func (h *Handlers) SetPassword(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(r.PathValue("userID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	password := r.FormValue("password")
+	if len(password) < 8 {
+		h.renderUserAccessSection(w, r, "", "Password must be at least 8 characters.")
+		return
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if err := h.Users.SetPassword(r.Context(), userID, hash); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if err := h.Users.DeleteSessionsByUserID(r.Context(), userID); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderUserAccessSection(w, r, "Password updated.", "")
+}
+
+// renderUserAccessSection re-renders the #user-access-body fragment after
+// any mutation (module toggle, user create, password reset) — the shared
+// tail every one of those three handlers ends with.
+func (h *Handlers) renderUserAccessSection(w http.ResponseWriter, r *http.Request, message, errMsg string) {
 	users, err := h.loadUsersWithAccess(r)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	data := settingsData{
-		PageData:     auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
-		Users:        users,
-		Modules:      auth.AllModules,
-		ModuleLabels: auth.ModuleLabels,
+		PageData:      auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		Users:         users,
+		Modules:       auth.AllModules,
+		ModuleLabels:  auth.ModuleLabels,
+		AccessMessage: message,
+		AccessError:   errMsg,
 	}
 	h.Renderer.RenderFragment(w, http.StatusOK, "settings/users_section.html", data)
 }

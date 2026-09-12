@@ -1,8 +1,31 @@
-<div id="user-access-body" class="card">
+<div id="user-access-body">
+
+<details class="card" style="margin-bottom:1rem;">
+  <summary>Add user</summary>
+  <form hx-post="/settings/users" hx-target="#user-access-body" hx-swap="outerHTML"
+        hx-on::after-request="if (event.detail.successful) this.reset()" style="margin-top:1rem;">
+    <label>Name
+      <input type="text" name="name" required>
+    </label>
+    <label>Email
+      <input type="email" name="email" required>
+    </label>
+    <label>Password
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <button type="submit">Add user</button>
+  </form>
+</details>
+
+<div class="card">
   <h3 style="margin-top:0;">User Access</h3>
   <p style="color:var(--text-muted); font-size:0.85rem; margin:-0.5rem 0 1rem;">
     Control which modules each user can open. A blocked module also disappears from their navigation.
   </p>
+
+  {{if .AccessMessage}}<p class="alert alert-success">{{.AccessMessage}}</p>{{end}}
+  {{if .AccessError}}<p class="alert alert-error">{{.AccessError}}</p>{{end}}
+
   {{if .Users}}
   <div class="table-scroll">
   <table class="responsive-table">
@@ -10,6 +33,7 @@
       <tr>
         <th>User</th>
         {{range $.Modules}}<th>{{index $.ModuleLabels .}}</th>{{end}}
+        <th>Reset password</th>
       </tr>
     </thead>
     <tbody>
@@ -31,6 +55,15 @@
           </button>
         </td>
         {{end}}
+        <td data-label="Reset password">
+          <form hx-post="/settings/access/{{$user.ID}}/password" hx-target="#user-access-body" hx-swap="outerHTML"
+                hx-confirm="Set a new password for {{$user.Name}}? They'll be logged out everywhere."
+                style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+            <input type="password" name="password" placeholder="New password" required minlength="8"
+                   autocomplete="new-password" style="width:140px;">
+            <button type="submit" class="link-button">Set</button>
+          </form>
+        </td>
       </tr>
       {{end}}
     </tbody>
@@ -39,4 +72,5 @@
   {{else}}
   <p class="empty-state">No users yet.</p>
   {{end}}
+</div>
 </div>

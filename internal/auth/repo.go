@@ -201,6 +201,24 @@ func (r *Repo) DeleteSessionByToken(ctx context.Context, token string) error {
 	return err
 }
 
+// DeleteSessionsByUserID invalidates every active session for userID.
+// Called after an admin resets someone's password (see settings.Handlers.
+// SetPassword) so a stale session cookie can't keep working under
+// credentials that were just changed out from under it.
+func (r *Repo) DeleteSessionsByUserID(ctx context.Context, userID int64) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
+	return err
+}
+
+// SetPassword overwrites a user's password hash directly — the admin-driven
+// "reset password" action (Settings → User Access). Unlike
+// PromoteAdminByEmail, there's no no-op guard: a password reset is always
+// an explicit, deliberate action.
+func (r *Repo) SetPassword(ctx context.Context, userID int64, passwordHash string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`, passwordHash, userID)
+	return err
+}
+
 func (r *Repo) DeleteExpiredSessions(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
 	return err
