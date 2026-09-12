@@ -1,5 +1,13 @@
 <div id="ticket-detail" class="card" style="margin-bottom:1.5rem;">
   {{if .Ticket.ResolvedAt}}<p class="alert alert-success">Resolved {{.Ticket.ResolvedAt.Format "Jan 2, 2006 15:04"}}</p>{{end}}
+  <div class="sla-status">
+    <span class="badge {{if .Ticket.ResponseBreached}}badge-rejected{{else}}badge-approved{{end}}">
+      Response {{if .Ticket.ResponseBreached}}breached{{else}}on track{{end}} &middot; due {{.Ticket.ResponseDueAt.Format "Jan 2, 15:04"}}
+    </span>
+    <span class="badge {{if .Ticket.ResolutionBreached}}badge-rejected{{else}}badge-approved{{end}}">
+      Resolution {{if .Ticket.ResolutionBreached}}breached{{else}}on track{{end}} &middot; due {{.Ticket.ResolutionDueAt.Format "Jan 2, 15:04"}}
+    </span>
+  </div>
   <form hx-put="/helpdesk/tickets/{{.Ticket.ID}}?from=detail" hx-target="#ticket-detail" hx-swap="outerHTML">
     <label>Subject
       <input type="text" name="subject" value="{{.Ticket.Subject}}" required>

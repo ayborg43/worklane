@@ -25,6 +25,32 @@ type Ticket struct {
 	ResolvedAt     *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+
+	// SLA fields are computed by the repo's ticketSelect query (joined
+	// against helpdesk_sla_policies) rather than stored, so breach status
+	// always reflects the current policy and the current time — no
+	// background job needs to keep them in sync.
+	FirstRespondedAt   *time.Time
+	ResponseDueAt      time.Time
+	ResolutionDueAt    time.Time
+	ResponseBreached   bool
+	ResolutionBreached bool
+}
+
+// Breached is true if either SLA target has been missed — the single flag
+// a Kanban card badge needs; the detail page shows the two separately.
+func (t Ticket) Breached() bool {
+	return t.ResponseBreached || t.ResolutionBreached
+}
+
+// SLAPolicy is a per-priority response/resolution target. Exactly one row
+// exists per priority (low/medium/high), seeded by migration 0020 and
+// editable from the Helpdesk board — there's no create/delete route since
+// the priority set itself is fixed by tickets.priority's CHECK constraint.
+type SLAPolicy struct {
+	Priority        string
+	ResponseHours   int
+	ResolutionHours int
 }
 
 type TicketInput struct {

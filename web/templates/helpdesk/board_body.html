@@ -37,6 +37,34 @@
   </form>
 </details>
 
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>SLA policies</summary>
+  <div class="table-scroll" style="margin-top:1rem;">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>Priority</th><th>Response target</th><th>Resolution target</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .SLAPolicies}}
+      {{$priority := .Priority}}
+      {{$formID := printf "sla-form-%s" $priority}}
+      <form id="{{$formID}}" hx-put="/helpdesk/sla/{{$priority}}" hx-target="#helpdesk-board" hx-swap="outerHTML"></form>
+      <tr>
+        <td data-label="Priority" style="text-transform:capitalize;">{{$priority}}</td>
+        <td data-label="Response target">
+          <input form="{{$formID}}" type="number" name="response_hours" min="1" value="{{.ResponseHours}}" style="max-width:80px;"> hours
+        </td>
+        <td data-label="Resolution target">
+          <input form="{{$formID}}" type="number" name="resolution_hours" min="1" value="{{.ResolutionHours}}" style="max-width:80px;"> hours
+        </td>
+        <td data-label="Actions" class="actions-cell"><button form="{{$formID}}" type="submit">Save</button></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+</details>
+
 <div class="kanban-board">
   <div class="kanban-column">
     <h4>Open <span class="kanban-count">{{len (index .TicketsByStatus "open")}}</span></h4>
@@ -100,6 +128,7 @@
   <div class="kanban-card-meta">
     <span>{{.RequesterLabel}}</span>
     <span class="badge{{if eq .Priority "high"}} badge-rejected{{else if eq .Priority "medium"}} badge-submitted{{end}}">{{.Priority}}</span>
+    {{if .Breached}}<span class="badge badge-rejected">SLA breached</span>{{end}}
   </div>
   <div class="kanban-card-meta" style="margin-top:0.3rem;">
     <span class="kanban-assignee{{if not .AssigneeName}} unassigned{{end}}">{{if .AssigneeName}}{{.AssigneeName}}{{else}}Unassigned{{end}}</span>

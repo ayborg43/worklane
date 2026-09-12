@@ -35,6 +35,7 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("PUT /helpdesk/tickets/{id}", mw.RequireAuth(http.HandlerFunc(h.Update)))
 	mux.Handle("DELETE /helpdesk/tickets/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
 	mux.Handle("POST /helpdesk/tickets/{id}/comments", mw.RequireAuth(http.HandlerFunc(h.CreateComment)))
+	mux.Handle("PUT /helpdesk/sla/{priority}", mw.RequireAuth(http.HandlerFunc(h.UpdateSLAPolicy)))
 }
 
 var ticketStatuses = []string{"open", "in_progress", "resolved"}
@@ -55,6 +56,7 @@ type boardData struct {
 	TicketsByStatus map[string][]Ticket
 	Contacts        []ContactOption
 	Users           []auth.User
+	SLAPolicies     []SLAPolicy
 }
 
 func (h *Handlers) loadBoardData(r *http.Request) (boardData, error) {
@@ -70,11 +72,16 @@ func (h *Handlers) loadBoardData(r *http.Request) (boardData, error) {
 	if err != nil {
 		return boardData{}, err
 	}
+	policies, err := h.Repo.ListSLAPolicies(r.Context())
+	if err != nil {
+		return boardData{}, err
+	}
 	return boardData{
 		PageData:        auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
 		TicketsByStatus: groupTicketsByStatus(tickets),
 		Contacts:        contacts,
 		Users:           users,
+		SLAPolicies:     policies,
 	}, nil
 }
 
@@ -355,12 +362,48 @@ func (h *Handlers) CreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	if err := h.Repo.MarkFirstResponse(r.Context(), id); err != nil {
+		log.Printf("helpdesk: mark first response: %v", err)
+	}
 	comments, err := h.Repo.ListComments(r.Context(), id)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	h.Renderer.RenderFragment(w, http.StatusOK, "helpdesk/comments_section.html", comments)
+}
+
+var slaPriorities = map[string]bool{"low": true, "medium": true, "high": true}
+
+// UpdateSLAPolicy re-renders the whole board (not just a small SLA-panel
+// fragment) because changing a target can flip the Breached() status of
+// every ticket at that priority — the Kanban cards need to reflect that
+// immediately, not just the settings row that was edited.
+func (h *Handlers) UpdateSLAPolicy(w http.ResponseWriter, r *http.Request) {
+	priority := r.PathValue("priority")
+	if !slaPriorities[priority] {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	responseHours, err := strconv.Atoi(r.FormValue("response_hours"))
+	if err != nil || responseHours <= 0 {
+		http.Error(w, "response hours must be a positive number", http.StatusBadRequest)
+		return
+	}
+	resolutionHours, err := strconv.Atoi(r.FormValue("resolution_hours"))
+	if err != nil || resolutionHours <= 0 {
+		http.Error(w, "resolution hours must be a positive number", http.StatusBadRequest)
+		return
+	}
+	if err := h.Repo.UpdateSLAPolicy(r.Context(), priority, responseHours, resolutionHours); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderBoard(w, r)
 }
 
 // notifyIfAssigned fires the same in-app+email pipeline task/opportunity

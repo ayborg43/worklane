@@ -718,6 +718,8 @@ tr:target { animation: target-row-flash 2s ease-out; }
 .badge-approved { background: var(--success-bg); color: var(--success); }
 .badge-rejected { background: var(--danger-bg); color: var(--danger); }
 
+.sla-status { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.1rem; }
+
 /* ---------- approvals ---------- */
 
 .approval-actions { white-space: nowrap; }

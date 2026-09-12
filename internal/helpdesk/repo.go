@@ -27,20 +27,37 @@ func nullInt64(v int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: v, Valid: true}
 }
 
+// response_due_at/resolution_due_at/*_breached are computed here (joined
+// against helpdesk_sla_policies by priority) rather than stored, so breach
+// status is always accurate as of query time with no reconciliation job.
+// COALESCE(t.first_responded_at, t.resolved_at, now()) is deliberate: once
+// a ticket is resolved, its response-breach status freezes at whichever of
+// "actually responded" or "resolved" came first, rather than drifting into
+// "breached" purely from the passage of time after an already-closed
+// ticket that happened to have no separate reply. The LEFT JOIN (with a
+// generous fallback) means a ticket never vanishes from a list if its
+// priority somehow has no matching policy row.
 const ticketSelect = `
 	SELECT t.id, t.subject, t.description, COALESCE(t.contact_id, 0), COALESCE(c.name, ''), COALESCE(c.company, ''),
 	       t.customer_name, t.customer_email, COALESCE(t.assignee_id, 0), COALESCE(u.name, ''),
-	       t.priority, t.status, t.created_by, COALESCE(cb.name, ''), t.resolved_at, t.created_at, t.updated_at
+	       t.priority, t.status, t.created_by, COALESCE(cb.name, ''), t.resolved_at, t.created_at, t.updated_at,
+	       t.first_responded_at,
+	       t.created_at + make_interval(hours => COALESCE(p.response_hours, 9999)),
+	       t.created_at + make_interval(hours => COALESCE(p.resolution_hours, 9999)),
+	       COALESCE(t.first_responded_at, t.resolved_at, now()) > t.created_at + make_interval(hours => COALESCE(p.response_hours, 9999)),
+	       COALESCE(t.resolved_at, now()) > t.created_at + make_interval(hours => COALESCE(p.resolution_hours, 9999))
 	FROM tickets t
 	LEFT JOIN contacts c ON c.id = t.contact_id
 	LEFT JOIN users u ON u.id = t.assignee_id
-	JOIN users cb ON cb.id = t.created_by`
+	JOIN users cb ON cb.id = t.created_by
+	LEFT JOIN helpdesk_sla_policies p ON p.priority = t.priority`
 
 func scanTicket(row pgx.Row) (*Ticket, error) {
 	var t Ticket
 	err := row.Scan(&t.ID, &t.Subject, &t.Description, &t.ContactID, &t.ContactName, &t.ContactCompany,
 		&t.CustomerName, &t.CustomerEmail, &t.AssigneeID, &t.AssigneeName,
-		&t.Priority, &t.Status, &t.CreatedBy, &t.CreatedByName, &t.ResolvedAt, &t.CreatedAt, &t.UpdatedAt)
+		&t.Priority, &t.Status, &t.CreatedBy, &t.CreatedByName, &t.ResolvedAt, &t.CreatedAt, &t.UpdatedAt,
+		&t.FirstRespondedAt, &t.ResponseDueAt, &t.ResolutionDueAt, &t.ResponseBreached, &t.ResolutionBreached)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -57,7 +74,8 @@ func scanTickets(rows pgx.Rows) ([]Ticket, error) {
 		var t Ticket
 		if err := rows.Scan(&t.ID, &t.Subject, &t.Description, &t.ContactID, &t.ContactName, &t.ContactCompany,
 			&t.CustomerName, &t.CustomerEmail, &t.AssigneeID, &t.AssigneeName,
-			&t.Priority, &t.Status, &t.CreatedBy, &t.CreatedByName, &t.ResolvedAt, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			&t.Priority, &t.Status, &t.CreatedBy, &t.CreatedByName, &t.ResolvedAt, &t.CreatedAt, &t.UpdatedAt,
+			&t.FirstRespondedAt, &t.ResponseDueAt, &t.ResolutionDueAt, &t.ResponseBreached, &t.ResolutionBreached); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -139,6 +157,47 @@ func (r *Repo) ListComments(ctx context.Context, ticketID int64) ([]Comment, err
 func (r *Repo) CreateComment(ctx context.Context, ticketID, userID int64, body string) error {
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES ($1, $2, $3)`, ticketID, userID, body)
+	return err
+}
+
+// MarkFirstResponse records the moment a ticket first got a reply, which is
+// what the response-SLA breach check measures against. There's no concept
+// of a customer-authored comment in this app (requesters have no login),
+// so any comment is a genuine staff response — the WHERE clause makes this
+// a no-op past the first call, no separate "has this fired yet" check
+// needed at the call site.
+func (r *Repo) MarkFirstResponse(ctx context.Context, ticketID int64) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE tickets SET first_responded_at = now() WHERE id = $1 AND first_responded_at IS NULL`, ticketID)
+	return err
+}
+
+// ---------- SLA policies ----------
+
+func (r *Repo) ListSLAPolicies(ctx context.Context) ([]SLAPolicy, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT priority, response_hours, resolution_hours FROM helpdesk_sla_policies
+		ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []SLAPolicy
+	for rows.Next() {
+		var p SLAPolicy
+		if err := rows.Scan(&p.Priority, &p.ResponseHours, &p.ResolutionHours); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repo) UpdateSLAPolicy(ctx context.Context, priority string, responseHours, resolutionHours int) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE helpdesk_sla_policies SET response_hours = $1, resolution_hours = $2, updated_at = now()
+		WHERE priority = $3`, responseHours, resolutionHours, priority)
 	return err
 }
 
