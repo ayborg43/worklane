@@ -61,6 +61,7 @@
     {{if .CurrentUser.CanAccess "calendar"}}<a href="/calendar">Calendar</a>{{end}}
     {{if .CurrentUser.CanAccess "social"}}<a href="/social">Social Posts</a>{{end}}
     {{if .CurrentUser.CanAccess "chat"}}<a href="/chat" class="nav-link-discuss">Discuss <span id="chat-unread-badge" hx-get="/chat/unread-badge" hx-trigger="load, every 30s" hx-swap="outerHTML"></span></a>{{end}}
+    <a href="https://mail.propertypadi.com" target="_blank" rel="noopener noreferrer">Mail</a>
     <div class="nav-topbar-cluster">
       <button type="button" class="nav-search-trigger" x-on:click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())" aria-label="Search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

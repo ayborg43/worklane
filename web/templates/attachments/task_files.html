@@ -3,7 +3,7 @@
 <ul class="attachment-list">
   {{range .}}
   <li class="attachment-row">
-    <a href="/attachments/{{.ID}}/download">{{.Filename}}</a>
+    <a href="/attachments/{{.ID}}/download" target="_blank" rel="noopener">{{.Filename}}</a>
     <span class="attachment-meta">{{.SizeDisplay}} &middot; {{.UploaderName}} &middot; {{.CreatedAt.Format "Jan 2"}}</span>
   </li>
   {{end}}

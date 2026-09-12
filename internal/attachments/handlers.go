@@ -102,7 +102,12 @@ func (h *Handlers) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", att.ContentType)
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": att.Filename}))
+	// "inline" (not "attachment") lets the browser render types it knows how
+	// to display — PDFs, images — directly in a new tab instead of forcing
+	// a save-file dialog; anything it can't display natively still falls
+	// back to downloading, same as chat.Handlers.DownloadAttachment already
+	// does for chat's own attachments.
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": att.Filename}))
 	http.ServeFile(w, r, att.StoragePath)
 }
 
