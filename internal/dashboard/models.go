@@ -29,6 +29,20 @@ type ProjectHoursItem struct {
 	Hours       float64
 }
 
+type ProjectItem struct {
+	ID        int64
+	Name      string
+	TaskCount int
+}
+
+type InvoiceItem struct {
+	ID          int64
+	ProjectID   int64
+	ProjectName string
+	TotalAmount float64
+	Status      string
+}
+
 // Data is the full set of KPI widgets shown on the dashboard. Each count/
 // total is computed independently of its preview list (a COUNT(*) alongside
 // a small LIMIT'd SELECT) so the big number stays accurate even once a
@@ -45,4 +59,10 @@ type Data struct {
 
 	UnbilledHours     float64
 	UnbilledByProject []ProjectHoursItem
+
+	ProjectCount int
+	Projects     []ProjectItem
+
+	TotalInvoiced float64
+	TopInvoices   []InvoiceItem
 }

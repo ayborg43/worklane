@@ -81,5 +81,44 @@
     {{end}}
   </div>
   {{end}}
+
+  {{if .CurrentUser.CanAccess "projects"}}
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Projects</span>
+    <span class="dashboard-kpi-value">{{.ProjectCount}}</span>
+    {{if .Projects}}
+    <ul class="dashboard-kpi-list">
+      {{range .Projects}}
+      <li>
+        <a href="/projects/{{.ID}}">{{.Name}}</a>
+        <span class="dashboard-kpi-meta">{{.TaskCount}} task{{if ne .TaskCount 1}}s{{end}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">You're not a member of any project yet.</p>
+    {{end}}
+    <a href="/projects" class="dashboard-kpi-viewall">View projects &rarr;</a>
+  </div>
+  {{end}}
+
+  {{if .CurrentUser.CanAccess "projects"}}
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Total invoiced</span>
+    <span class="dashboard-kpi-value">${{money .TotalInvoiced}}</span>
+    {{if .TopInvoices}}
+    <ul class="dashboard-kpi-list">
+      {{range .TopInvoices}}
+      <li>
+        <a href="/invoices/{{.ID}}">{{.ProjectName}}</a>
+        <span class="dashboard-kpi-meta">${{money .TotalAmount}} &middot; {{.Status}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">No invoices generated yet.</p>
+    {{end}}
+  </div>
+  {{end}}
 </div>
 {{end}}

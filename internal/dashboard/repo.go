@@ -40,6 +40,12 @@ func (r *Repo) Load(ctx context.Context, userID int64) (Data, error) {
 	if d.UnbilledHours, d.UnbilledByProject, err = r.unbilledHours(ctx, userID); err != nil {
 		return d, err
 	}
+	if d.ProjectCount, d.Projects, err = r.projectsOverview(ctx, userID); err != nil {
+		return d, err
+	}
+	if d.TotalInvoiced, d.TopInvoices, err = r.totalInvoiced(ctx); err != nil {
+		return d, err
+	}
 	return d, nil
 }
 
@@ -132,6 +138,75 @@ func (r *Repo) pipelineValue(ctx context.Context) (float64, []OpportunityItem, e
 	for rows.Next() {
 		var it OpportunityItem
 		if err := rows.Scan(&it.ID, &it.Name, &it.ValueAmount, &it.ContactName); err != nil {
+			return 0, nil, err
+		}
+		items = append(items, it)
+	}
+	return total, items, rows.Err()
+}
+
+// projectsOverview is scoped to the user's own project_members rows —
+// same membership rule projects.Repo.ListProjects already enforces — not
+// org-wide like openTickets/pipelineValue, since project visibility is
+// genuinely per-member, not shared.
+func (r *Repo) projectsOverview(ctx context.Context, userID int64) (int, []ProjectItem, error) {
+	var count int
+	if err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM projects p
+		JOIN project_members pm ON pm.project_id = p.id
+		WHERE pm.user_id = $1`, userID,
+	).Scan(&count); err != nil {
+		return 0, nil, err
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.id, p.name, COUNT(t.id)
+		FROM projects p
+		JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = $1
+		LEFT JOIN tasks t ON t.project_id = p.id
+		GROUP BY p.id
+		ORDER BY p.created_at DESC
+		LIMIT $2`, userID, previewLimit)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	var items []ProjectItem
+	for rows.Next() {
+		var it ProjectItem
+		if err := rows.Scan(&it.ID, &it.Name, &it.TaskCount); err != nil {
+			return 0, nil, err
+		}
+		items = append(items, it)
+	}
+	return count, items, rows.Err()
+}
+
+// totalInvoiced is org-wide (same posture as pipelineValue/openTickets) and
+// counts every invoice regardless of status (draft/sent/paid) — "total
+// invoiced" reads as everything billed, not just what's been collected.
+func (r *Repo) totalInvoiced(ctx context.Context) (float64, []InvoiceItem, error) {
+	var total float64
+	if err := r.pool.QueryRow(ctx, `SELECT COALESCE(SUM(total_amount), 0) FROM invoices`).Scan(&total); err != nil {
+		return 0, nil, err
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT i.id, i.project_id, p.name, i.total_amount, i.status
+		FROM invoices i
+		JOIN projects p ON p.id = i.project_id
+		ORDER BY i.total_amount DESC
+		LIMIT $1`, previewLimit)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	var items []InvoiceItem
+	for rows.Next() {
+		var it InvoiceItem
+		if err := rows.Scan(&it.ID, &it.ProjectID, &it.ProjectName, &it.TotalAmount, &it.Status); err != nil {
 			return 0, nil, err
 		}
 		items = append(items, it)

@@ -515,8 +515,19 @@ details.card[open] summary::before { content: "\2212"; }
 .auth-alt { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0; margin-top: 1rem; }
 
 @media (max-width: 720px) {
-  .auth-shell { grid-template-columns: 1fr; gap: 1.5rem; min-height: 0; margin: 2rem auto; }
+  /* The brand block (icon + heading + tagline) is sized to sit *beside*
+     the card in the desktop two-column grid — stacked above it here at
+     full size, it was tall enough to push the submit button below the
+     fold on shorter phones while also leaving a large dead gap under the
+     card on taller ones. Shrinking it (rather than fighting either
+     symptom with a viewport-height calc) fixes both at once, and the nav
+     bar already shows the Worklane brand, so restating it this large
+     directly underneath is redundant anyway. */
+  .auth-shell { grid-template-columns: 1fr; gap: 1.1rem; min-height: 0; margin: 0.5rem auto; }
   .auth-brand { text-align: center; padding: 0; }
+  .auth-brand-mark { width: 2.25rem; height: 2.25rem; font-size: 1.05rem; border-radius: 10px; margin-bottom: 0.6rem; }
+  .auth-brand h2 { font-size: 1.25rem; margin-bottom: 0.3rem; }
+  .auth-brand p { max-width: none; font-size: 0.82rem; }
   .auth-card { max-width: none; margin: 0 auto; }
 }
 
