@@ -1,0 +1,17 @@
+{{if not .Query}}
+<p class="empty-state">Type to search tasks, tickets, contacts, wiki pages, and invoices.</p>
+{{else if .Results}}
+<ul class="search-results-list">
+  {{range .Results}}
+  <li><a href="{{.URL}}" class="search-result" data-kind="{{.Kind}}">
+    <span class="badge search-result-kind">{{.Label}}</span>
+    <span class="search-result-text">
+      <span class="search-result-title">{{.Title}}</span>
+      <span class="search-result-subtitle">{{.Subtitle}}</span>
+    </span>
+  </a></li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty-state">No results for &ldquo;{{.Query}}&rdquo;.</p>
+{{end}}

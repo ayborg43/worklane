@@ -1,5 +1,7 @@
 {{define "nav"}}
-<nav class="nav" x-data="{mobileOpen: false}" x-on:click.outside="mobileOpen = false">
+<nav class="nav" x-data="{mobileOpen: false, searchOpen: false}" x-on:click.outside="mobileOpen = false"
+     x-on:keydown.window.cmd.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput.focus())"
+     x-on:keydown.window.ctrl.k.prevent="searchOpen = true; $nextTick(() => $refs.searchInput.focus())">
   <div class="nav-brand"><a href="/"><span class="nav-brand-mark">W</span>Worklane</a></div>
   <button type="button" class="nav-toggle" x-on:click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen.toString()" aria-label="Menu">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -44,6 +46,13 @@
     <a href="/activities" class="nav-more-mobile-link">Activities</a>
     <a href="/chat" class="nav-link-discuss">Discuss <span id="chat-unread-badge" hx-get="/chat/unread-badge" hx-trigger="load, every 30s" hx-swap="outerHTML"></span></a>
     <span class="nav-divider"></span>
+    <button type="button" class="nav-search-trigger" x-on:click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())" aria-label="Search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <span class="nav-search-hint">Search <kbd>⌘K</kbd></span>
+    </button>
     <div id="notif-panel" hx-get="/notifications/panel" hx-trigger="load, every 30s" hx-swap="outerHTML"></div>
     {{if .CurrentUser.IsAdmin}}<a href="/settings">Settings</a>{{end}}
     <div class="theme-switch" role="group" aria-label="Theme">
@@ -68,6 +77,18 @@
     </div>
     <a href="/login">Log in</a>
     <a href="/register" class="button">Register</a>
+  </div>
+  {{end}}
+  {{if .CurrentUser}}
+  <div class="search-modal-overlay" x-show="searchOpen" x-cloak x-on:keydown.escape.window="searchOpen = false">
+    <div class="search-modal" x-on:click.outside="searchOpen = false">
+      <input type="text" name="q" class="search-modal-input" placeholder="Search tasks, tickets, contacts, wiki pages, invoices…"
+             x-ref="searchInput" autocomplete="off"
+             hx-get="/search" hx-trigger="input changed delay:200ms, search" hx-target="#search-results" hx-swap="innerHTML">
+      <div id="search-results" class="search-results">
+        <p class="empty-state">Type to search tasks, tickets, contacts, wiki pages, and invoices.</p>
+      </div>
+    </div>
   </div>
   {{end}}
 </nav>

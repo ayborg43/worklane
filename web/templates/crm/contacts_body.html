@@ -10,7 +10,7 @@
     {{$contactID := .ID}}
     {{$formID := printf "contact-form-%d" $contactID}}
     <form id="{{$formID}}" hx-put="/crm/contacts/{{$contactID}}" hx-target="#contacts-body" hx-swap="outerHTML"></form>
-    <tr>
+    <tr id="contact-row-{{$contactID}}">
       <td data-label="Name"><input form="{{$formID}}" type="text" name="name" value="{{.Name}}"></td>
       <td data-label="Company"><input form="{{$formID}}" type="text" name="company" value="{{.Company}}"></td>
       <td data-label="Email"><input form="{{$formID}}" type="email" name="email" value="{{.Email}}"></td>

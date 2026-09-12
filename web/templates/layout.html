@@ -85,6 +85,42 @@
       });
     }
   </script>
+  <script>
+    (function () {
+      var input = document.querySelector(".search-modal-input");
+      if (!input) return;
+      var active = -1;
+      function items() { return document.querySelectorAll("#search-results .search-result"); }
+      function setActive(i) {
+        var list = items();
+        list.forEach(function (el) { el.classList.remove("active"); });
+        active = Math.max(-1, Math.min(i, list.length - 1));
+        if (active >= 0) {
+          list[active].classList.add("active");
+          list[active].scrollIntoView({ block: "nearest" });
+        }
+      }
+      input.addEventListener("keydown", function (e) {
+        var list = items();
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setActive(active + 1);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setActive(active - 1);
+        } else if (e.key === "Enter") {
+          var target = list[active >= 0 ? active : 0];
+          if (target) {
+            e.preventDefault();
+            location.href = target.getAttribute("href");
+          }
+        }
+      });
+      document.body.addEventListener("htmx:afterSwap", function (e) {
+        if (e.target && e.target.id === "search-results") active = -1;
+      });
+    })();
+  </script>
 </body>
 </html>
 {{end}}

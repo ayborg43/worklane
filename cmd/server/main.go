@@ -23,6 +23,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/invoicing"
 	"github.com/sociolytik/odoo-clone/internal/notifications"
 	"github.com/sociolytik/odoo-clone/internal/projects"
+	"github.com/sociolytik/odoo-clone/internal/search"
 	"github.com/sociolytik/odoo-clone/internal/settings"
 	"github.com/sociolytik/odoo-clone/internal/timesheets"
 	"github.com/sociolytik/odoo-clone/internal/web"
@@ -136,6 +137,10 @@ func main() {
 	crmRepo := crm.NewRepo(pool)
 	crmHandlers := crm.NewHandlers(crmRepo, authRepo, notificationsRepo, renderer)
 	crmHandlers.MountRoutes(mux, authMW)
+
+	searchRepo := search.NewRepo(pool)
+	searchHandlers := search.NewHandlers(searchRepo, renderer)
+	searchHandlers.MountRoutes(mux, authMW)
 
 	chatHub := chat.NewHub()
 	go chatHub.Run()
