@@ -1,0 +1,77 @@
+{{define "content"}}
+<div class="page-header">
+  <h1>Welcome back, {{.CurrentUser.Name}}</h1>
+</div>
+
+<div class="list-grid">
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Overdue tasks</span>
+    <span class="dashboard-kpi-value">{{.OverdueTaskCount}}</span>
+    {{if .OverdueTasks}}
+    <ul class="dashboard-kpi-list">
+      {{range .OverdueTasks}}
+      <li>
+        <a href="/projects/{{.ProjectID}}/tasks/{{.ID}}">{{.Name}}</a>
+        <span class="dashboard-kpi-meta">{{.ProjectName}} &middot; due {{.EndDate.Format "Jan 2"}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">Nothing overdue — nice work.</p>
+    {{end}}
+  </div>
+
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Open tickets</span>
+    <span class="dashboard-kpi-value">{{.OpenTicketCount}}</span>
+    {{if .OpenTickets}}
+    <ul class="dashboard-kpi-list">
+      {{range .OpenTickets}}
+      <li>
+        <a href="/helpdesk/tickets/{{.ID}}">{{.Subject}}</a>
+        <span class="dashboard-kpi-meta">{{.Priority}} priority</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">Support queue is clear.</p>
+    {{end}}
+    <a href="/helpdesk" class="dashboard-kpi-viewall">View helpdesk &rarr;</a>
+  </div>
+
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Pipeline value</span>
+    <span class="dashboard-kpi-value">${{printf "%.2f" .PipelineValue}}</span>
+    {{if .TopOpportunities}}
+    <ul class="dashboard-kpi-list">
+      {{range .TopOpportunities}}
+      <li>
+        <a href="/crm/opportunities/{{.ID}}">{{.Name}}</a>
+        <span class="dashboard-kpi-meta">${{printf "%.2f" .ValueAmount}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">No open opportunities yet.</p>
+    {{end}}
+    <a href="/crm" class="dashboard-kpi-viewall">View pipeline &rarr;</a>
+  </div>
+
+  <div class="card dashboard-kpi-card">
+    <span class="dashboard-kpi-label">Unbilled hours</span>
+    <span class="dashboard-kpi-value">{{printf "%.1f" .UnbilledHours}}h</span>
+    {{if .UnbilledByProject}}
+    <ul class="dashboard-kpi-list">
+      {{range .UnbilledByProject}}
+      <li>
+        <a href="/projects/{{.ProjectID}}/invoices">{{.ProjectName}}</a>
+        <span class="dashboard-kpi-meta">{{printf "%.1f" .Hours}}h</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="dashboard-kpi-empty">Nothing waiting to be invoiced.</p>
+    {{end}}
+  </div>
+</div>
+{{end}}

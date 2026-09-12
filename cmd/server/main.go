@@ -18,6 +18,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/chat"
 	"github.com/sociolytik/odoo-clone/internal/config"
 	"github.com/sociolytik/odoo-clone/internal/crm"
+	"github.com/sociolytik/odoo-clone/internal/dashboard"
 	"github.com/sociolytik/odoo-clone/internal/db"
 	"github.com/sociolytik/odoo-clone/internal/helpdesk"
 	"github.com/sociolytik/odoo-clone/internal/invoicing"
@@ -69,13 +70,10 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		if auth.UserFromContext(r.Context()) != nil {
-			http.Redirect(w, r, "/projects", http.StatusFound)
-			return
-		}
-		http.Redirect(w, r, "/login", http.StatusFound)
-	})
+	dashboardRepo := dashboard.NewRepo(pool)
+	dashboardHandlers := dashboard.NewHandlers(dashboardRepo, renderer)
+	dashboardHandlers.MountRoutes(mux)
+
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	mux.HandleFunc("GET /manifest.json", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "web/static/manifest.json")

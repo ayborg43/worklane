@@ -45,7 +45,7 @@ type loginData struct {
 
 func (h *Handlers) LoginForm(w http.ResponseWriter, r *http.Request) {
 	if UserFromContext(r.Context()) != nil {
-		http.Redirect(w, r, "/projects", http.StatusFound)
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	h.Renderer.Render(w, http.StatusOK, "auth/login.html", loginData{})
@@ -69,7 +69,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.startSession(w, r, user.ID)
-	http.Redirect(w, r, "/projects", http.StatusFound)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 type registerData struct {
@@ -81,7 +81,7 @@ type registerData struct {
 
 func (h *Handlers) RegisterForm(w http.ResponseWriter, r *http.Request) {
 	if UserFromContext(r.Context()) != nil {
-		http.Redirect(w, r, "/projects", http.StatusFound)
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	h.Renderer.Render(w, http.StatusOK, "auth/register.html", registerData{})
@@ -125,7 +125,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.startSession(w, r, user.ID)
-	http.Redirect(w, r, "/projects", http.StatusFound)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {

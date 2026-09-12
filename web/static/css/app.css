@@ -682,6 +682,17 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   .responsive-table td[data-label="Actions"] > * { flex: none; }
 }
 
+/* ---------- dashboard ---------- */
+
+.dashboard-kpi-card { display: flex; flex-direction: column; gap: 0.3rem; }
+.dashboard-kpi-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.dashboard-kpi-value { font-size: 2.1rem; font-weight: 800; line-height: 1.2; }
+.dashboard-kpi-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.dashboard-kpi-list li { display: flex; flex-direction: column; font-size: 0.88rem; }
+.dashboard-kpi-meta { color: var(--text-muted); font-size: 0.78rem; }
+.dashboard-kpi-empty { color: var(--text-muted); font-size: 0.88rem; margin: 0.5rem 0 0; }
+.dashboard-kpi-viewall { display: inline-block; margin-top: 0.75rem; font-size: 0.85rem; font-weight: 600; }
+
 /* ---------- deep-linked row highlight (e.g. arriving from global search) ---------- */
 
 tr:target { animation: target-row-flash 2s ease-out; }
