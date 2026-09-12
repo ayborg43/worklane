@@ -25,23 +25,23 @@ func NewHandlers(repo *Repo, users *auth.Repo, notificationsRepo *notifications.
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /crm", mw.RequireAuth(http.HandlerFunc(h.Pipeline)))
-	mux.Handle("POST /crm/opportunities", mw.RequireAuth(http.HandlerFunc(h.CreateOpportunity)))
-	mux.Handle("GET /crm/opportunities/{id}", mw.RequireAuth(http.HandlerFunc(h.ShowOpportunity)))
-	mux.Handle("PUT /crm/opportunities/{id}", mw.RequireAuth(http.HandlerFunc(h.UpdateOpportunity)))
-	mux.Handle("DELETE /crm/opportunities/{id}", mw.RequireAuth(http.HandlerFunc(h.DeleteOpportunity)))
-	mux.Handle("POST /crm/opportunities/{id}/won", mw.RequireAuth(http.HandlerFunc(h.MarkWon)))
-	mux.Handle("POST /crm/opportunities/{id}/lost", mw.RequireAuth(http.HandlerFunc(h.MarkLost)))
+	mux.Handle("GET /crm", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.Pipeline)))
+	mux.Handle("POST /crm/opportunities", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.CreateOpportunity)))
+	mux.Handle("GET /crm/opportunities/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.ShowOpportunity)))
+	mux.Handle("PUT /crm/opportunities/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.UpdateOpportunity)))
+	mux.Handle("DELETE /crm/opportunities/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.DeleteOpportunity)))
+	mux.Handle("POST /crm/opportunities/{id}/won", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.MarkWon)))
+	mux.Handle("POST /crm/opportunities/{id}/lost", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.MarkLost)))
 
-	mux.Handle("GET /crm/contacts", mw.RequireAuth(http.HandlerFunc(h.ListContacts)))
-	mux.Handle("POST /crm/contacts", mw.RequireAuth(http.HandlerFunc(h.CreateContact)))
-	mux.Handle("PUT /crm/contacts/{id}", mw.RequireAuth(http.HandlerFunc(h.UpdateContact)))
-	mux.Handle("DELETE /crm/contacts/{id}", mw.RequireAuth(http.HandlerFunc(h.DeleteContact)))
+	mux.Handle("GET /crm/contacts", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.ListContacts)))
+	mux.Handle("POST /crm/contacts", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.CreateContact)))
+	mux.Handle("PUT /crm/contacts/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.UpdateContact)))
+	mux.Handle("DELETE /crm/contacts/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.DeleteContact)))
 
-	mux.Handle("POST /crm/stages", mw.RequireAuth(http.HandlerFunc(h.CreateStage)))
-	mux.Handle("DELETE /crm/stages/{id}", mw.RequireAuth(http.HandlerFunc(h.DeleteStage)))
-	mux.Handle("POST /crm/stages/{id}/move-up", mw.RequireAuth(http.HandlerFunc(h.MoveStageUp)))
-	mux.Handle("POST /crm/stages/{id}/move-down", mw.RequireAuth(http.HandlerFunc(h.MoveStageDown)))
+	mux.Handle("POST /crm/stages", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.CreateStage)))
+	mux.Handle("DELETE /crm/stages/{id}", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.DeleteStage)))
+	mux.Handle("POST /crm/stages/{id}/move-up", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.MoveStageUp)))
+	mux.Handle("POST /crm/stages/{id}/move-down", mw.RequireAuthAndModule("crm", http.HandlerFunc(h.MoveStageDown)))
 }
 
 func (h *Handlers) handleLookupError(w http.ResponseWriter, r *http.Request, err error) {

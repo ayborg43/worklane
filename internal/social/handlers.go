@@ -26,8 +26,8 @@ func NewHandlers(repo *Repo, renderer *web.Renderer, baseURL string) *Handlers {
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /social", mw.RequireAuth(http.HandlerFunc(h.Index)))
-	mux.Handle("POST /social/posts", mw.RequireAuth(http.HandlerFunc(h.CreatePost)))
+	mux.Handle("GET /social", mw.RequireAuthAndModule("social", http.HandlerFunc(h.Index)))
+	mux.Handle("POST /social/posts", mw.RequireAuthAndModule("social", http.HandlerFunc(h.CreatePost)))
 
 	mux.Handle("GET /social/connections", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Connections))))
 	mux.Handle("POST /social/connections/credentials/{platform}", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateCredentials))))

@@ -29,9 +29,9 @@ func NewHandlers(repo *Repo, notificationsRepo *notifications.Repo, renderer *we
 // approval queue does, and an org-wide admin is the only elevated role
 // this app already has.
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /timeoff", mw.RequireAuth(http.HandlerFunc(h.List)))
-	mux.Handle("POST /timeoff", mw.RequireAuth(http.HandlerFunc(h.Create)))
-	mux.Handle("DELETE /timeoff/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
+	mux.Handle("GET /timeoff", mw.RequireAuthAndModule("timeoff", http.HandlerFunc(h.List)))
+	mux.Handle("POST /timeoff", mw.RequireAuthAndModule("timeoff", http.HandlerFunc(h.Create)))
+	mux.Handle("DELETE /timeoff/{id}", mw.RequireAuthAndModule("timeoff", http.HandlerFunc(h.Delete)))
 	mux.Handle("GET /timeoff/approvals", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Approvals))))
 	mux.Handle("POST /timeoff/{id}/approve", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Approve))))
 	mux.Handle("POST /timeoff/{id}/reject", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Reject))))

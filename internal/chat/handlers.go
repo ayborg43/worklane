@@ -41,14 +41,14 @@ func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer, hub *Hub,
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /chat", mw.RequireAuth(http.HandlerFunc(h.Index)))
-	mux.Handle("GET /chat/channels/{id}", mw.RequireAuth(http.HandlerFunc(h.ShowChannel)))
-	mux.Handle("POST /chat/channels", mw.RequireAuth(http.HandlerFunc(h.CreateChannel)))
-	mux.Handle("POST /chat/dm/{userID}", mw.RequireAuth(http.HandlerFunc(h.StartDM)))
-	mux.Handle("GET /chat/ws/{channelID}", mw.RequireAuth(http.HandlerFunc(h.ServeWS)))
-	mux.Handle("GET /chat/unread-badge", mw.RequireAuth(http.HandlerFunc(h.UnreadBadge)))
-	mux.Handle("POST /chat/channels/{id}/attachments", mw.RequireAuth(http.HandlerFunc(h.UploadAttachment)))
-	mux.Handle("GET /chat/messages/{id}/download", mw.RequireAuth(http.HandlerFunc(h.DownloadAttachment)))
+	mux.Handle("GET /chat", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.Index)))
+	mux.Handle("GET /chat/channels/{id}", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.ShowChannel)))
+	mux.Handle("POST /chat/channels", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.CreateChannel)))
+	mux.Handle("POST /chat/dm/{userID}", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.StartDM)))
+	mux.Handle("GET /chat/ws/{channelID}", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.ServeWS)))
+	mux.Handle("GET /chat/unread-badge", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.UnreadBadge)))
+	mux.Handle("POST /chat/channels/{id}/attachments", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.UploadAttachment)))
+	mux.Handle("GET /chat/messages/{id}/download", mw.RequireAuthAndModule("chat", http.HandlerFunc(h.DownloadAttachment)))
 }
 
 // UploadAttachment saves the file, persists it as a chat message (with an

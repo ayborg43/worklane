@@ -25,13 +25,13 @@ func NewHandlers(repo *Repo, renderer *web.Renderer) *Handlers {
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /projects/{id}/invoices", mw.RequireAuth(http.HandlerFunc(h.Index)))
-	mux.Handle("POST /projects/{id}/invoices/rate", mw.RequireAuth(http.HandlerFunc(h.SetRate)))
-	mux.Handle("POST /projects/{id}/invoices/contact", mw.RequireAuth(http.HandlerFunc(h.SetContact)))
-	mux.Handle("POST /projects/{id}/invoices", mw.RequireAuth(http.HandlerFunc(h.Generate)))
-	mux.Handle("GET /invoices/{id}", mw.RequireAuth(http.HandlerFunc(h.Show)))
-	mux.Handle("POST /invoices/{id}/status", mw.RequireAuth(http.HandlerFunc(h.SetStatus)))
-	mux.Handle("DELETE /invoices/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
+	mux.Handle("GET /projects/{id}/invoices", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Index)))
+	mux.Handle("POST /projects/{id}/invoices/rate", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.SetRate)))
+	mux.Handle("POST /projects/{id}/invoices/contact", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.SetContact)))
+	mux.Handle("POST /projects/{id}/invoices", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Generate)))
+	mux.Handle("GET /invoices/{id}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Show)))
+	mux.Handle("POST /invoices/{id}/status", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.SetStatus)))
+	mux.Handle("DELETE /invoices/{id}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Delete)))
 }
 
 // requireOwner loads the project's owner/name/rate/contact and 404s anyone

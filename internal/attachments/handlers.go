@@ -31,9 +31,9 @@ func NewHandlers(repo *Repo, members MembershipChecker, renderer *web.Renderer, 
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("POST /projects/{id}/attachments", mw.RequireAuth(http.HandlerFunc(h.UploadProject)))
-	mux.Handle("POST /projects/{id}/tasks/{taskID}/attachments", mw.RequireAuth(http.HandlerFunc(h.UploadTask)))
-	mux.Handle("GET /attachments/{attachmentID}/download", mw.RequireAuth(http.HandlerFunc(h.Download)))
+	mux.Handle("POST /projects/{id}/attachments", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.UploadProject)))
+	mux.Handle("POST /projects/{id}/tasks/{taskID}/attachments", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.UploadTask)))
+	mux.Handle("GET /attachments/{attachmentID}/download", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Download)))
 }
 
 func (h *Handlers) checkMember(w http.ResponseWriter, r *http.Request, projectID, userID int64) bool {

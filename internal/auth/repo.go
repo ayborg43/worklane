@@ -123,15 +123,77 @@ func (r *Repo) CreateSession(ctx context.Context, userID int64, ttl time.Duratio
 	return token, expiresAt, nil
 }
 
+// GetUserBySessionToken also loads the user's restricted-module set in the
+// same round trip (via a LEFT JOIN + array_agg) rather than a second query
+// — this is the one lookup that runs on every authenticated request
+// (Middleware.LoadUser), so RestrictedModules only ever gets populated
+// here, not in scanUser/userColumns (used by lookups — DM picker,
+// ListUsers, admin promotion — that have no use for it).
 func (r *Repo) GetUserBySessionToken(ctx context.Context, token string) (*User, error) {
 	hash := hashToken(token)
 	row := r.pool.QueryRow(ctx,
-		`SELECT u.id, u.email, u.name, u.password_hash, u.is_admin, u.created_at, u.updated_at
-		 FROM sessions s JOIN users u ON u.id = s.user_id
-		 WHERE s.id = $1 AND s.expires_at > now()`,
+		`SELECT u.id, u.email, u.name, u.password_hash, u.is_admin, u.created_at, u.updated_at,
+		        COALESCE(array_agg(r.module) FILTER (WHERE r.module IS NOT NULL), '{}')
+		 FROM sessions s
+		 JOIN users u ON u.id = s.user_id
+		 LEFT JOIN user_module_restrictions r ON r.user_id = u.id
+		 WHERE s.id = $1 AND s.expires_at > now()
+		 GROUP BY u.id`,
 		hash,
 	)
-	return scanUser(row)
+	var u User
+	var restricted []string
+	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.CreatedAt, &u.UpdatedAt, &restricted)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	u.RestrictedModules = make(map[string]bool, len(restricted))
+	for _, m := range restricted {
+		u.RestrictedModules[m] = true
+	}
+	return &u, nil
+}
+
+// SetModuleAccess grants (allowed=true) or revokes (allowed=false) a
+// user's access to module. Presence of a row in user_module_restrictions
+// means blocked; absence means allowed.
+func (r *Repo) SetModuleAccess(ctx context.Context, userID int64, module string, allowed bool) error {
+	if allowed {
+		_, err := r.pool.Exec(ctx, `DELETE FROM user_module_restrictions WHERE user_id = $1 AND module = $2`, userID, module)
+		return err
+	}
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO user_module_restrictions (user_id, module) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		userID, module)
+	return err
+}
+
+// ListAllRestrictions returns every user's restricted-module set keyed by
+// user_id, in one query — the admin User Access page renders its whole
+// grid from this rather than doing an N+1 lookup per user.
+func (r *Repo) ListAllRestrictions(ctx context.Context) (map[int64]map[string]bool, error) {
+	rows, err := r.pool.Query(ctx, `SELECT user_id, module FROM user_module_restrictions`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[int64]map[string]bool)
+	for rows.Next() {
+		var userID int64
+		var module string
+		if err := rows.Scan(&userID, &module); err != nil {
+			return nil, err
+		}
+		if out[userID] == nil {
+			out[userID] = make(map[string]bool)
+		}
+		out[userID][module] = true
+	}
+	return out, rows.Err()
 }
 
 func (r *Repo) DeleteSessionByToken(ctx context.Context, token string) error {

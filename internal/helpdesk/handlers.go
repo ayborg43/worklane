@@ -29,13 +29,13 @@ func NewHandlers(repo *Repo, users *auth.Repo, notificationsRepo *notifications.
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /helpdesk", mw.RequireAuth(http.HandlerFunc(h.Board)))
-	mux.Handle("POST /helpdesk/tickets", mw.RequireAuth(http.HandlerFunc(h.Create)))
-	mux.Handle("GET /helpdesk/tickets/{id}", mw.RequireAuth(http.HandlerFunc(h.Show)))
-	mux.Handle("PUT /helpdesk/tickets/{id}", mw.RequireAuth(http.HandlerFunc(h.Update)))
-	mux.Handle("DELETE /helpdesk/tickets/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
-	mux.Handle("POST /helpdesk/tickets/{id}/comments", mw.RequireAuth(http.HandlerFunc(h.CreateComment)))
-	mux.Handle("PUT /helpdesk/sla/{priority}", mw.RequireAuth(http.HandlerFunc(h.UpdateSLAPolicy)))
+	mux.Handle("GET /helpdesk", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.Board)))
+	mux.Handle("POST /helpdesk/tickets", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.Create)))
+	mux.Handle("GET /helpdesk/tickets/{id}", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.Show)))
+	mux.Handle("PUT /helpdesk/tickets/{id}", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.Update)))
+	mux.Handle("DELETE /helpdesk/tickets/{id}", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.Delete)))
+	mux.Handle("POST /helpdesk/tickets/{id}/comments", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.CreateComment)))
+	mux.Handle("PUT /helpdesk/sla/{priority}", mw.RequireAuthAndModule("helpdesk", http.HandlerFunc(h.UpdateSLAPolicy)))
 }
 
 var ticketStatuses = []string{"open", "in_progress", "resolved"}

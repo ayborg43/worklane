@@ -11,17 +11,19 @@ import (
 
 type Handlers struct {
 	Repo     *Repo
+	Users    *auth.Repo
 	Renderer *web.Renderer
 }
 
-func NewHandlers(repo *Repo, renderer *web.Renderer) *Handlers {
-	return &Handlers{Repo: repo, Renderer: renderer}
+func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer) *Handlers {
+	return &Handlers{Repo: repo, Users: users, Renderer: renderer}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /settings", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Show))))
 	mux.Handle("POST /settings/mail", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateMail))))
 	mux.Handle("POST /settings/mail/test", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.TestMail))))
+	mux.Handle("POST /settings/access/{userID}/{module}/toggle", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.ToggleModuleAccess))))
 }
 
 type settingsData struct {
@@ -29,6 +31,13 @@ type settingsData struct {
 	Mail    MailSettings
 	Message string
 	Error   string
+
+	// Populated only for the full-page Show render and the User Access
+	// fragment re-render — the mail-section fragment renders never touch
+	// these, so renderSection leaves them at zero value.
+	Users        []auth.User
+	Modules      []string
+	ModuleLabels map[string]string
 }
 
 func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
@@ -37,11 +46,19 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	data := settingsData{
-		PageData: auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
-		Mail:     *cfg,
+	users, err := h.loadUsersWithAccess(r)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	h.Renderer.Render(w, http.StatusOK, "settings/index.html", data, "settings/mail_section.html")
+	data := settingsData{
+		PageData:     auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		Mail:         *cfg,
+		Users:        users,
+		Modules:      auth.AllModules,
+		ModuleLabels: auth.ModuleLabels,
+	}
+	h.Renderer.Render(w, http.StatusOK, "settings/index.html", data, "settings/mail_section.html", "settings/users_section.html")
 }
 
 func (h *Handlers) UpdateMail(w http.ResponseWriter, r *http.Request) {
@@ -116,4 +133,63 @@ func (h *Handlers) renderSection(w http.ResponseWriter, r *http.Request, cfg Mai
 		Error:    errMsg,
 	}
 	h.Renderer.RenderFragment(w, http.StatusOK, "settings/mail_section.html", data)
+}
+
+// loadUsersWithAccess fetches every user and attaches each one's
+// RestrictedModules (via a single ListAllRestrictions query, not an N+1
+// per-user lookup) so the User Access template can just call the same
+// User.CanAccess method every route gate and nav link already use.
+func (h *Handlers) loadUsersWithAccess(r *http.Request) ([]auth.User, error) {
+	users, err := h.Users.ListUsers(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	restrictions, err := h.Users.ListAllRestrictions(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	for i := range users {
+		users[i].RestrictedModules = restrictions[users[i].ID]
+	}
+	return users, nil
+}
+
+// ToggleModuleAccess flips one user's access to one module. wasBlocked
+// doubles as the new "allowed" value: if the module was blocked, the new
+// state is allowed (true); if it was allowed, the new state is blocked
+// (false) — see auth.Repo.SetModuleAccess.
+func (h *Handlers) ToggleModuleAccess(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(r.PathValue("userID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	module := r.PathValue("module")
+	if !auth.IsModule(module) {
+		http.NotFound(w, r)
+		return
+	}
+	restrictions, err := h.Users.ListAllRestrictions(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	wasBlocked := restrictions[userID][module]
+	if err := h.Users.SetModuleAccess(r.Context(), userID, module, wasBlocked); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	users, err := h.loadUsersWithAccess(r)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	data := settingsData{
+		PageData:     auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		Users:        users,
+		Modules:      auth.AllModules,
+		ModuleLabels: auth.ModuleLabels,
+	}
+	h.Renderer.RenderFragment(w, http.StatusOK, "settings/users_section.html", data)
 }

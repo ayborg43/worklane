@@ -1,0 +1,42 @@
+<div id="user-access-body" class="card">
+  <h3 style="margin-top:0;">User Access</h3>
+  <p style="color:var(--text-muted); font-size:0.85rem; margin:-0.5rem 0 1rem;">
+    Control which modules each user can open. A blocked module also disappears from their navigation.
+  </p>
+  {{if .Users}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr>
+        <th>User</th>
+        {{range $.Modules}}<th>{{index $.ModuleLabels .}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Users}}
+      {{$user := .}}
+      <tr>
+        <td data-label="User">
+          {{.Name}}<br>
+          <span style="color:var(--text-muted); font-size:0.78rem;">{{.Email}}</span>
+        </td>
+        {{range $.Modules}}
+        {{$mod := .}}
+        <td data-label="{{index $.ModuleLabels .}}">
+          <button type="button"
+                  hx-post="/settings/access/{{$user.ID}}/{{$mod}}/toggle"
+                  hx-target="#user-access-body" hx-swap="outerHTML"
+                  class="badge {{if $user.CanAccess $mod}}badge-approved{{else}}badge-rejected{{end}}">
+            {{if $user.CanAccess $mod}}Allowed{{else}}Blocked{{end}}
+          </button>
+        </td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <p class="empty-state">No users yet.</p>
+  {{end}}
+</div>

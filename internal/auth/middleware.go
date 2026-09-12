@@ -62,6 +62,27 @@ func (m *Middleware) RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
+// RequireModule blocks the request unless the current user can access
+// module (see User.CanAccess) — same 404-hides-existence convention as
+// RequireAdmin. Mount after RequireAuth (needs a user already attached to
+// the request context) — RequireAuthAndModule below does both at once.
+func (m *Middleware) RequireModule(module string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !UserFromContext(r.Context()).CanAccess(module) {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RequireAuthAndModule is the RequireAuth+RequireModule pair every
+// module-gated route actually wants — cuts the double-wrap boilerplate at
+// each mux.Handle call site.
+func (m *Middleware) RequireAuthAndModule(module string, next http.Handler) http.Handler {
+	return m.RequireAuth(m.RequireModule(module, next))
+}
+
 // RequireAdmin blocks the request unless the logged-in user is an admin.
 // Mount after RequireAuth. 404s rather than 403s, hiding the route's
 // existence from non-admins the same way requireMember hides projects from

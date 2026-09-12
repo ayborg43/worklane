@@ -12,10 +12,10 @@
   </button>
   {{if .CurrentUser}}
   <div class="nav-links" :class="{ 'nav-links-open': mobileOpen }">
-    <a href="/projects">Projects</a>
-    <a href="/crm">CRM</a>
-    <a href="/helpdesk">Helpdesk</a>
-    <a href="/timesheets">Timesheets</a>
+    {{if .CurrentUser.CanAccess "projects"}}<a href="/projects">Projects</a>{{end}}
+    {{if .CurrentUser.CanAccess "crm"}}<a href="/crm">CRM</a>{{end}}
+    {{if .CurrentUser.CanAccess "helpdesk"}}<a href="/helpdesk">Helpdesk</a>{{end}}
+    {{if .CurrentUser.CanAccess "timesheets"}}<a href="/timesheets">Timesheets</a>{{end}}
     <!-- Desktop: grouped behind "More" so the nav still fits at common
          laptop/tablet widths (~1024-1280px) now that there are enough
          top-level sections to otherwise collide with the brand mark —
@@ -27,13 +27,13 @@
     <div class="nav-more" x-data="{open:false}" x-on:click.outside="open=false">
       <button type="button" class="nav-more-trigger" x-on:click="open=!open" :aria-expanded="open.toString()">More</button>
       <div class="nav-more-dropdown" x-show="open" x-cloak>
-        <a href="/timesheets/approvals">Approvals</a>
-        <a href="/timeoff">Time Off</a>
+        {{if .CurrentUser.CanAccess "timesheets"}}<a href="/timesheets/approvals">Approvals</a>{{end}}
+        {{if .CurrentUser.CanAccess "timeoff"}}<a href="/timeoff">Time Off</a>{{end}}
         {{if .CurrentUser.IsAdmin}}<a href="/timeoff/approvals">Time Off Approvals</a>{{end}}
-        <a href="/reports">Reports</a>
-        <a href="/calendar">Calendar</a>
-        <a href="/activities">Activities</a>
-        <a href="/social">Social Posts</a>
+        {{if .CurrentUser.CanAccess "timesheets"}}<a href="/reports">Reports</a>{{end}}
+        {{if .CurrentUser.CanAccess "calendar"}}<a href="/calendar">Calendar</a>{{end}}
+        {{if .CurrentUser.CanAccess "projects"}}<a href="/activities">Activities</a>{{end}}
+        {{if .CurrentUser.CanAccess "social"}}<a href="/social">Social Posts</a>{{end}}
       </div>
     </div>
     <!-- Mobile: the hamburger menu stacks everything vertically already,
@@ -43,14 +43,14 @@
          display:none on .nav-more-dropdown when closed, which would beat
          any stylesheet override, so this is a separate, always-flat set
          of links rather than trying to force the same nodes to show. -->
-    <a href="/timesheets/approvals" class="nav-more-mobile-link">Approvals</a>
-    <a href="/timeoff" class="nav-more-mobile-link">Time Off</a>
+    {{if .CurrentUser.CanAccess "timesheets"}}<a href="/timesheets/approvals" class="nav-more-mobile-link">Approvals</a>{{end}}
+    {{if .CurrentUser.CanAccess "timeoff"}}<a href="/timeoff" class="nav-more-mobile-link">Time Off</a>{{end}}
     {{if .CurrentUser.IsAdmin}}<a href="/timeoff/approvals" class="nav-more-mobile-link">Time Off Approvals</a>{{end}}
-    <a href="/reports" class="nav-more-mobile-link">Reports</a>
-    <a href="/calendar" class="nav-more-mobile-link">Calendar</a>
-    <a href="/activities" class="nav-more-mobile-link">Activities</a>
-    <a href="/social" class="nav-more-mobile-link">Social Posts</a>
-    <a href="/chat" class="nav-link-discuss">Discuss <span id="chat-unread-badge" hx-get="/chat/unread-badge" hx-trigger="load, every 30s" hx-swap="outerHTML"></span></a>
+    {{if .CurrentUser.CanAccess "timesheets"}}<a href="/reports" class="nav-more-mobile-link">Reports</a>{{end}}
+    {{if .CurrentUser.CanAccess "calendar"}}<a href="/calendar" class="nav-more-mobile-link">Calendar</a>{{end}}
+    {{if .CurrentUser.CanAccess "projects"}}<a href="/activities" class="nav-more-mobile-link">Activities</a>{{end}}
+    {{if .CurrentUser.CanAccess "social"}}<a href="/social" class="nav-more-mobile-link">Social Posts</a>{{end}}
+    {{if .CurrentUser.CanAccess "chat"}}<a href="/chat" class="nav-link-discuss">Discuss <span id="chat-unread-badge" hx-get="/chat/unread-badge" hx-trigger="load, every 30s" hx-swap="outerHTML"></span></a>{{end}}
     <span class="nav-divider"></span>
     <button type="button" class="nav-search-trigger" x-on:click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())" aria-label="Search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -20,6 +20,7 @@ with no JS build step.
 - Timesheets: weekly logging, owner approval workflow, reporting
 - Discuss: channels & DMs, unread indicators, file attachments, emoji picker
 - Notifications: in-app bell + optional email delivery (Settings → Mail, admin-only)
+- User Access (Settings, admin-only): per-user, per-module allow/block (Projects, CRM, Helpdesk, Timesheets, Time Off, Calendar, Social Posts, Discuss) — a blocked module disappears from that user's nav, dashboard, and search results, and its routes 404
 - Dark mode, mobile hamburger nav, installable as a PWA
 
 ## Running locally

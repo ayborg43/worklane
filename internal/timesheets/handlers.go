@@ -27,14 +27,14 @@ func NewHandlers(repo *Repo, projectsRepo *projects.Repo, notificationsRepo *not
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /timesheets", mw.RequireAuth(http.HandlerFunc(h.List)))
-	mux.Handle("POST /timesheets", mw.RequireAuth(http.HandlerFunc(h.Create)))
-	mux.Handle("DELETE /timesheets/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
-	mux.Handle("POST /timesheets/{id}/billable", mw.RequireAuth(http.HandlerFunc(h.SetBillable)))
-	mux.Handle("GET /timesheets/approvals", mw.RequireAuth(http.HandlerFunc(h.Approvals)))
-	mux.Handle("POST /timesheets/{id}/approve", mw.RequireAuth(http.HandlerFunc(h.Approve)))
-	mux.Handle("POST /timesheets/{id}/reject", mw.RequireAuth(http.HandlerFunc(h.Reject)))
-	mux.Handle("GET /reports", mw.RequireAuth(http.HandlerFunc(h.Reports)))
+	mux.Handle("GET /timesheets", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.List)))
+	mux.Handle("POST /timesheets", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Create)))
+	mux.Handle("DELETE /timesheets/{id}", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Delete)))
+	mux.Handle("POST /timesheets/{id}/billable", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.SetBillable)))
+	mux.Handle("GET /timesheets/approvals", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Approvals)))
+	mux.Handle("POST /timesheets/{id}/approve", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Approve)))
+	mux.Handle("POST /timesheets/{id}/reject", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Reject)))
+	mux.Handle("GET /reports", mw.RequireAuthAndModule("timesheets", http.HandlerFunc(h.Reports)))
 }
 
 type dayGroup struct {

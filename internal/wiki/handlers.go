@@ -30,11 +30,11 @@ func NewHandlers(repo *Repo, members MembershipChecker, renderer *web.Renderer) 
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /projects/{id}/wiki", mw.RequireAuth(http.HandlerFunc(h.Index)))
-	mux.Handle("POST /projects/{id}/wiki", mw.RequireAuth(http.HandlerFunc(h.Create)))
-	mux.Handle("GET /projects/{id}/wiki/{pageID}", mw.RequireAuth(http.HandlerFunc(h.Show)))
-	mux.Handle("PUT /projects/{id}/wiki/{pageID}", mw.RequireAuth(http.HandlerFunc(h.Update)))
-	mux.Handle("DELETE /projects/{id}/wiki/{pageID}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
+	mux.Handle("GET /projects/{id}/wiki", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Index)))
+	mux.Handle("POST /projects/{id}/wiki", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Create)))
+	mux.Handle("GET /projects/{id}/wiki/{pageID}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Show)))
+	mux.Handle("PUT /projects/{id}/wiki/{pageID}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Update)))
+	mux.Handle("DELETE /projects/{id}/wiki/{pageID}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Delete)))
 }
 
 func (h *Handlers) checkMember(w http.ResponseWriter, r *http.Request, projectID, userID int64) bool {

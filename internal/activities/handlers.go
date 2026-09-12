@@ -34,11 +34,11 @@ func NewHandlers(repo *Repo, members MembershipChecker, notificationsRepo *notif
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /activities", mw.RequireAuth(http.HandlerFunc(h.MyActivities)))
-	mux.Handle("POST /projects/{id}/activities", mw.RequireAuth(http.HandlerFunc(h.CreateForProject)))
-	mux.Handle("POST /projects/{id}/tasks/{taskID}/activities", mw.RequireAuth(http.HandlerFunc(h.CreateForTask)))
-	mux.Handle("POST /activities/{id}/done", mw.RequireAuth(http.HandlerFunc(h.MarkDone)))
-	mux.Handle("DELETE /activities/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
+	mux.Handle("GET /activities", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.MyActivities)))
+	mux.Handle("POST /projects/{id}/activities", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.CreateForProject)))
+	mux.Handle("POST /projects/{id}/tasks/{taskID}/activities", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.CreateForTask)))
+	mux.Handle("POST /activities/{id}/done", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.MarkDone)))
+	mux.Handle("DELETE /activities/{id}", mw.RequireAuthAndModule("projects", http.HandlerFunc(h.Delete)))
 }
 
 func (h *Handlers) checkMember(w http.ResponseWriter, r *http.Request, projectID, userID int64) bool {

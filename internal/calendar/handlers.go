@@ -26,7 +26,7 @@ func NewHandlers(projectsRepo *projects.Repo, timesheetsRepo *timesheets.Repo, r
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
-	mux.Handle("GET /calendar", mw.RequireAuth(http.HandlerFunc(h.Show)))
+	mux.Handle("GET /calendar", mw.RequireAuthAndModule("calendar", http.HandlerFunc(h.Show)))
 }
 
 type event struct {
