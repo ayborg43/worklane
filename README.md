@@ -48,6 +48,11 @@ manual setup step required.
      links in emailed notifications — task assignments, due-date reminders,
      timesheet approvals)
    - `POSTGRES_USER` / `POSTGRES_DB` — optional, default to `worklane`
+   - `ADMIN_EMAIL` — optional. On every startup, promotes the matching
+     *already-registered* user to admin. It never creates an account or
+     sets/changes a password, so it's safe to leave set permanently — it
+     won't reset anything on a later redeploy. Mainly useful if you ever
+     need to re-grant admin without a manual SQL step.
 3. In **Domains**, point a domain at the `app` service, container port
    `8080`. Dokploy handles TLS via Let's Encrypt.
 4. Deploy. Health check is `GET /health`.

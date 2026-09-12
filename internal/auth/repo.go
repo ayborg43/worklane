@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -58,6 +59,21 @@ func (r *Repo) EnsureAdminExists(ctx context.Context) error {
 		UPDATE users SET is_admin = true
 		WHERE id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
 		  AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin = true)`)
+	return err
+}
+
+// PromoteAdminByEmail sets is_admin = true for the user matching email, if
+// one has already registered. Deliberately does nothing else: it never
+// creates an account and never touches a password, so it's safe to leave
+// ADMIN_EMAIL set in the environment indefinitely without it silently
+// resetting anyone's credentials on every restart. A no-op (not an error)
+// when email is empty or doesn't match any registered user yet.
+func (r *Repo) PromoteAdminByEmail(ctx context.Context, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil
+	}
+	_, err := r.pool.Exec(ctx, `UPDATE users SET is_admin = true WHERE email = $1`, email)
 	return err
 }
 

@@ -8,6 +8,9 @@
 #                         links in emailed notifications
 # Optional:
 #   POSTGRES_USER, POSTGRES_DB - default to "worklane" below
+#   ADMIN_EMAIL - promotes that already-registered user to admin on every
+#                 startup; never creates an account or touches a password,
+#                 safe to leave set indefinitely
 
 services:
   app:
@@ -20,6 +23,7 @@ services:
       ADDR: ":8080"
       COOKIE_SECURE: "true"
       BASE_URL: ${BASE_URL:?BASE_URL is required, e.g. https://worklane.yourdomain.com}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     volumes:
       - app_data:/app/data
     depends_on:

@@ -66,6 +66,12 @@ func main() {
 	if err := authRepo.EnsureAdminExists(ctx); err != nil {
 		log.Fatalf("ensure admin exists: %v", err)
 	}
+	// Optional convenience for deployment: promotes an already-registered
+	// user to admin without needing manual SQL. Never fatal — it's a
+	// nice-to-have, not a startup invariant like EnsureAdminExists.
+	if err := authRepo.PromoteAdminByEmail(ctx, cfg.AdminEmail); err != nil {
+		log.Printf("promote admin by email: %v", err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
