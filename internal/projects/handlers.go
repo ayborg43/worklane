@@ -329,6 +329,14 @@ func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if task.AssigneeID != 0 {
+		link := fmt.Sprintf("/projects/%d/tasks/%d", projectID, task.ID)
+		body := fmt.Sprintf("You were assigned to task %q", task.Name)
+		if err := h.Notifications.Create(r.Context(), task.AssigneeID, "task_assigned", body, link); err != nil {
+			log.Printf("notifications: create: %v", err)
+		}
+	}
+
 	h.renderProjectBody(w, r, projectID)
 }
 
@@ -428,11 +436,23 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	link := fmt.Sprintf("/projects/%d/tasks/%d", projectID, taskID)
 	if in.AssigneeID != 0 && in.AssigneeID != current.AssigneeID {
-		link := fmt.Sprintf("/projects/%d/tasks/%d", projectID, taskID)
 		body := fmt.Sprintf("You were assigned to task %q", in.Name)
 		if err := h.Notifications.Create(r.Context(), in.AssigneeID, "task_assigned", body, link); err != nil {
 			log.Printf("notifications: create: %v", err)
+		}
+	} else if in.AssigneeID != 0 {
+		// Same assignee as before, but something else about the task
+		// changed (name, dates, progress, status, description). Skipped
+		// when the editor is the assignee themselves — someone updating
+		// their own task's progress/status doesn't need an email about
+		// their own action.
+		if editor := auth.UserFromContext(r.Context()); editor == nil || editor.ID != in.AssigneeID {
+			body := fmt.Sprintf("Task %q was updated", in.Name)
+			if err := h.Notifications.Create(r.Context(), in.AssigneeID, "task_updated", body, link); err != nil {
+				log.Printf("notifications: create: %v", err)
+			}
 		}
 	}
 

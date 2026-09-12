@@ -2,6 +2,8 @@ package settings
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,10 +18,11 @@ type Handlers struct {
 	Repo     *Repo
 	Users    *auth.Repo
 	Renderer *web.Renderer
+	BaseURL  string
 }
 
-func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer) *Handlers {
-	return &Handlers{Repo: repo, Users: users, Renderer: renderer}
+func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer, baseURL string) *Handlers {
+	return &Handlers{Repo: repo, Users: users, Renderer: renderer, BaseURL: baseURL}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
@@ -223,7 +226,23 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	h.renderUserAccessSection(w, r, "User created.", "")
+
+	// The plain password only ever exists in memory for this one request
+	// (only its hash is persisted) — this is the one chance to put it in
+	// the welcome email. A delivery failure (mail not configured, SMTP
+	// down) doesn't undo the account creation; it's surfaced as a
+	// still-successful message with a caveat instead of an error, since
+	// the admin can always use "Reset password" to hand over credentials
+	// another way.
+	body := fmt.Sprintf(
+		"Hi %s,\n\nAn account has been created for you on Worklane.\n\nLogin: %s\nEmail: %s\nPassword: %s\n\nIf you'd like to change this password, ask an admin to reset it.",
+		name, h.BaseURL+"/login", email, password)
+	if err := h.Repo.Send(r.Context(), email, "Your Worklane account", body); err != nil {
+		log.Printf("settings: welcome email to %s: %v", email, err)
+		h.renderUserAccessSection(w, r, "User created, but the welcome email could not be sent (check Mail settings).", "")
+		return
+	}
+	h.renderUserAccessSection(w, r, "User created and emailed their login details.", "")
 }
 
 // SetPassword lets an admin overwrite a user's password directly (a

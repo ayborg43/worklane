@@ -103,7 +103,7 @@ func main() {
 	attachmentsRepo := attachments.NewRepo(pool)
 
 	settingsRepo := settings.NewRepo(pool)
-	settingsHandlers := settings.NewHandlers(settingsRepo, authRepo, renderer)
+	settingsHandlers := settings.NewHandlers(settingsRepo, authRepo, renderer, cfg.BaseURL)
 	settingsHandlers.MountRoutes(mux, authMW)
 
 	notificationsRepo := notifications.NewRepo(pool, authRepo, settingsRepo, cfg.BaseURL)
