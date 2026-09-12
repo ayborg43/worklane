@@ -12,25 +12,6 @@
   </div>
 </div>
 
-{{template "members_section.html" .}}
-
-{{template "milestones_section.html" .}}
-
-{{template "project_activities.html" .}}
-
-{{template "task_templates_section.html" .}}
-
-<details class="card" style="margin-bottom:1.5rem;">
-  <summary>Files</summary>
-  <form hx-post="/projects/{{.Project.ID}}/attachments" hx-target="#project-files" hx-swap="outerHTML" hx-encoding="multipart/form-data" style="margin-top:1rem;">
-    <input type="file" name="file" required>
-    <button type="submit" style="margin-top:0.5rem;">Upload</button>
-  </form>
-  <div style="margin-top:1rem;">
-    {{template "project_files.html" .ProjectFiles}}
-  </div>
-</details>
-
 <details class="card" style="margin-bottom:1.5rem;">
   <summary>New task</summary>
   <form hx-post="/projects/{{.Project.ID}}/tasks?view={{.View}}" hx-target="#project-body" hx-swap="outerHTML" style="margin-top:1rem;">
@@ -65,4 +46,37 @@
 </details>
 
 {{template "project_body.html" .}}
+
+<h2 class="section-divider">Project settings</h2>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Members</summary>
+  {{template "members_section.html" .}}
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Milestones</summary>
+  {{template "milestones_section.html" .}}
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Activities</summary>
+  {{template "project_activities.html" .}}
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Task templates</summary>
+  {{template "task_templates_section.html" .}}
+</details>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Files</summary>
+  <form hx-post="/projects/{{.Project.ID}}/attachments" hx-target="#project-files" hx-swap="outerHTML" hx-encoding="multipart/form-data" style="margin-top:1rem;">
+    <input type="file" name="file" required>
+    <button type="submit" style="margin-top:0.5rem;">Upload</button>
+  </form>
+  <div style="margin-top:1rem;">
+    {{template "project_files.html" .ProjectFiles}}
+  </div>
+</details>
 {{end}}

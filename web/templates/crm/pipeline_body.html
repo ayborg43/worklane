@@ -55,7 +55,7 @@
   <div class="kanban-column">
     <h4>{{.Name}} <span class="kanban-count">{{len (index $.OpportunitiesByStage .ID)}}</span></h4>
     {{$total := index $.StageTotals .ID}}
-    {{if $total}}<div style="font-size:0.72rem; color:var(--text-muted); margin:-0.5rem 0 0.75rem;">${{printf "%.0f" $total}}</div>{{end}}
+    {{if $total}}<div style="font-size:0.72rem; color:var(--text-muted); margin:-0.5rem 0 0.75rem;">${{money $total}}</div>{{end}}
     <div class="kanban-cards" data-stage-id="{{.ID}}">
       {{range index $.OpportunitiesByStage .ID}}{{template "opportunity_card" .}}{{end}}
     </div>
@@ -123,7 +123,7 @@
   <div class="kanban-card-title"><a href="/crm/opportunities/{{.ID}}">{{.Name}}</a></div>
   <div class="kanban-card-meta">
     <span class="kanban-assignee{{if not .ContactName}} unassigned{{end}}">{{if .ContactName}}{{.ContactName}}{{else}}No contact{{end}}</span>
-    <span class="kanban-dates">${{printf "%.0f" .ValueAmount}}</span>
+    <span class="kanban-dates">${{money .ValueAmount}}</span>
   </div>
   <div class="kanban-card-meta" style="margin-top:0.3rem;">
     <span class="kanban-assignee">{{.OwnerName}}</span>

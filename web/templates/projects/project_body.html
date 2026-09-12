@@ -106,7 +106,7 @@
       <form id="{{$formID}}" hx-put="/projects/{{$.Project.ID}}/tasks/{{$taskID}}?view=list" hx-target="#project-body" hx-swap="outerHTML"></form>
       <tr>
         <td data-label="Task">
-          <input form="{{$formID}}" type="text" name="name" value="{{.Name}}">
+          <input form="{{$formID}}" type="text" name="name" value="{{.Name}}" title="{{.Name}}" style="width:100%;">
           {{if .DependsOn}}
           <div class="deps">
             {{range .DependsOn}}

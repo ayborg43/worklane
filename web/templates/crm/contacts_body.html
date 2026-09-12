@@ -11,10 +11,10 @@
     {{$formID := printf "contact-form-%d" $contactID}}
     <form id="{{$formID}}" hx-put="/crm/contacts/{{$contactID}}" hx-target="#contacts-body" hx-swap="outerHTML"></form>
     <tr id="contact-row-{{$contactID}}">
-      <td data-label="Name"><input form="{{$formID}}" type="text" name="name" value="{{.Name}}"></td>
-      <td data-label="Company"><input form="{{$formID}}" type="text" name="company" value="{{.Company}}"></td>
-      <td data-label="Email"><input form="{{$formID}}" type="email" name="email" value="{{.Email}}"></td>
-      <td data-label="Phone"><input form="{{$formID}}" type="text" name="phone" value="{{.Phone}}"></td>
+      <td data-label="Name"><input form="{{$formID}}" type="text" name="name" value="{{.Name}}" title="{{.Name}}" style="width:100%;"></td>
+      <td data-label="Company"><input form="{{$formID}}" type="text" name="company" value="{{.Company}}" title="{{.Company}}" style="width:100%;"></td>
+      <td data-label="Email"><input form="{{$formID}}" type="email" name="email" value="{{.Email}}" title="{{.Email}}" style="width:100%;"></td>
+      <td data-label="Phone"><input form="{{$formID}}" type="text" name="phone" value="{{.Phone}}" title="{{.Phone}}" style="width:100%;"></td>
       <td data-label="Actions" class="actions-cell">
         <button form="{{$formID}}" type="submit">Save</button>
         <button type="button" hx-post="/portal/send-link/{{$contactID}}" hx-target="#portal-status-{{$contactID}}" hx-swap="innerHTML" class="link-button">Send portal link</button>

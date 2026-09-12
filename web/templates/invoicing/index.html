@@ -18,7 +18,7 @@
   <h3 style="margin-top:0;">Client contact</h3>
   <form method="post" action="/projects/{{.ProjectID}}/invoices/contact" class="activity-add-form">
     {{$contactID := .ContactID}}
-    <select name="contact_id">
+    <select name="contact_id" style="max-width:320px; flex:1 1 220px; min-width:0;">
       <option value="">No client contact</option>
       {{range .Contacts}}<option value="{{.ID}}" {{if eq .ID $contactID}}selected{{end}}>{{.Name}}{{if .Company}} ({{.Company}}){{end}}</option>{{end}}
     </select>
@@ -51,7 +51,7 @@
       <a href="/invoices/{{.ID}}">{{.Number}}</a>
       <span style="color:var(--text-muted); font-size:0.85rem;">{{.PeriodStart.Format "Jan 2"}} &ndash; {{.PeriodEnd.Format "Jan 2, 2006"}}</span>
       <span class="badge{{if eq .Status "paid"}} badge-approved{{else if eq .Status "sent"}} badge-submitted{{end}}">{{.Status}}</span>
-      <span style="margin-left:auto; font-weight:600;">${{printf "%.2f" .TotalAmount}}</span>
+      <span style="margin-left:auto; font-weight:600;">${{money .TotalAmount}}</span>
     </li>
     {{end}}
   </ul>

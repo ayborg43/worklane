@@ -39,7 +39,7 @@
         <td data-label="Project">{{.ProjectName}}</td>
         <td data-label="Period">{{.PeriodStart.Format "Jan 2"}} &ndash; {{.PeriodEnd.Format "Jan 2, 2006"}}</td>
         <td data-label="Status"><span class="badge{{if eq .Status "paid"}} badge-approved{{else if eq .Status "sent"}} badge-submitted{{end}}">{{.Status}}</span></td>
-        <td data-label="Amount">${{printf "%.2f" .TotalAmount}}</td>
+        <td data-label="Amount">${{money .TotalAmount}}</td>
       </tr>
       {{end}}
     </tbody>

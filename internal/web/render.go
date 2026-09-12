@@ -1,10 +1,12 @@
 package web
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 // Renderer renders full pages (layout + nav partial + one page template) and
@@ -18,6 +20,39 @@ type Renderer struct {
 
 func NewRenderer(dir string) *Renderer {
 	return &Renderer{dir: dir}
+}
+
+var funcMap = template.FuncMap{
+	"money": money,
+}
+
+// money formats a float64 as a comma-grouped decimal with exactly two places
+// (e.g. 48000 -> "48,000.00", -1234.5 -> "-1,234.50"). Templates still
+// supply the "$" themselves (${{money .X}}) — this only adds the digit
+// grouping printf "%.2f" doesn't do on its own.
+func money(v float64) string {
+	s := fmt.Sprintf("%.2f", v)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	whole, frac, _ := strings.Cut(s, ".")
+
+	var b strings.Builder
+	n := len(whole)
+	for i := 0; i < n; i++ {
+		if i > 0 && (n-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte(whole[i])
+	}
+	b.WriteByte('.')
+	b.WriteString(frac)
+
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
 }
 
 // Render executes layout.html + partials/nav.html + the given page (plus any
@@ -41,7 +76,7 @@ func (r *Renderer) RenderWithLayout(w http.ResponseWriter, status int, layout, p
 	for _, p := range extraPartials {
 		files = append(files, filepath.Join(r.dir, p))
 	}
-	tmpl, err := template.ParseFiles(files...)
+	tmpl, err := template.New(filepath.Base(files[0])).Funcs(funcMap).ParseFiles(files...)
 	if err != nil {
 		return err
 	}
@@ -64,7 +99,7 @@ func (r *Renderer) RenderFragment(w http.ResponseWriter, status int, page string
 // every WebSocket client in a channel.
 func (r *Renderer) RenderFragmentTo(w io.Writer, page string, data any) error {
 	path := filepath.Join(r.dir, page)
-	tmpl, err := template.ParseFiles(path)
+	tmpl, err := template.New(filepath.Base(path)).Funcs(funcMap).ParseFiles(path)
 	if err != nil {
 		return err
 	}

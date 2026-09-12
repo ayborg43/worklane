@@ -160,6 +160,14 @@ type chatData struct {
 func (h *Handlers) renderChat(w http.ResponseWriter, r *http.Request, activeChannelID int64) {
 	user := auth.UserFromContext(r.Context())
 
+	// Backfills membership into any channel created before this user
+	// registered — otherwise a new user's Discuss page is permanently
+	// empty, since CreateChannel only adds users who already existed at
+	// the time a channel was made.
+	if err := h.Repo.JoinAllChannels(r.Context(), user.ID); err != nil {
+		log.Printf("chat: join all channels: %v", err)
+	}
+
 	// Mark-read happens before ListChannelsForUser so the just-opened
 	// channel's own sidebar badge is already zero in this same response,
 	// rather than waiting for the next unread-badge poll.

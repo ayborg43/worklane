@@ -1,5 +1,4 @@
-<div id="task-recurrence" class="card" style="margin-bottom:1.5rem;">
-  <h3 style="margin-top:0;">Recurrence</h3>
+<div id="task-recurrence">
   {{if .Task.RecurrenceUnit}}
   <p style="color:var(--text-muted);">
     Repeats every {{.Task.RecurrenceInterval}} {{.Task.RecurrenceUnit}}(s){{if .Task.RecurrenceUntil}} until {{.Task.RecurrenceUntil.Format "Jan 2, 2006"}}{{end}}.

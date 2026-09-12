@@ -41,13 +41,13 @@
 
   <div class="card dashboard-kpi-card">
     <span class="dashboard-kpi-label">Pipeline value</span>
-    <span class="dashboard-kpi-value">${{printf "%.2f" .PipelineValue}}</span>
+    <span class="dashboard-kpi-value">${{money .PipelineValue}}</span>
     {{if .TopOpportunities}}
     <ul class="dashboard-kpi-list">
       {{range .TopOpportunities}}
       <li>
         <a href="/crm/opportunities/{{.ID}}">{{.Name}}</a>
-        <span class="dashboard-kpi-meta">${{printf "%.2f" .ValueAmount}}</span>
+        <span class="dashboard-kpi-meta">${{money .ValueAmount}}</span>
       </li>
       {{end}}
     </ul>

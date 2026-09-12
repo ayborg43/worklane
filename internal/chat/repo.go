@@ -116,6 +116,20 @@ func (r *Repo) IsMember(ctx context.Context, channelID, userID int64) (bool, err
 // member immediately — this app has no "browse/join public channels" UI, so
 // channels are workspace-wide by default (mirrors the "all users see all
 // projects" MVP scope cut).
+// JoinAllChannels backfills userID into every existing 'channel'-kind
+// channel (never DMs). CreateChannel already adds every then-current user
+// to a channel at creation time, so the only gap is a user who registers
+// after a channel already exists — this closes it. Idempotent (ON CONFLICT
+// DO NOTHING), so it's cheap to call on every Discuss page visit rather
+// than needing a one-time hook into registration.
+func (r *Repo) JoinAllChannels(ctx context.Context, userID int64) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO chat_channel_members (channel_id, user_id)
+		SELECT c.id, $1 FROM chat_channels c WHERE c.kind = 'channel'
+		ON CONFLICT DO NOTHING`, userID)
+	return err
+}
+
 func (r *Repo) CreateChannel(ctx context.Context, name string, createdBy int64) (*Channel, error) {
 	var id int64
 	err := r.pool.QueryRow(ctx,

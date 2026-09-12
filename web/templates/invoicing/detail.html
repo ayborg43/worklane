@@ -33,15 +33,15 @@
         <td data-label="Who">{{.UserName}}</td>
         <td data-label="Description">{{if .Description}}{{.Description}}{{else}}—{{end}}</td>
         <td data-label="Hours">{{.Hours}}h</td>
-        <td data-label="Rate">${{printf "%.2f" .Rate}}</td>
-        <td data-label="Amount">${{printf "%.2f" .Amount}}</td>
+        <td data-label="Rate">${{money .Rate}}</td>
+        <td data-label="Amount">${{money .Amount}}</td>
       </tr>
       {{end}}
     </tbody>
     <tfoot>
       <tr>
         <td colspan="5" style="text-align:right; font-weight:700;">Total</td>
-        <td style="font-weight:700;">${{printf "%.2f" .Invoice.TotalAmount}}</td>
+        <td style="font-weight:700;">${{money .Invoice.TotalAmount}}</td>
       </tr>
     </tfoot>
   </table>
