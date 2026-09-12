@@ -13,7 +13,7 @@
       <input type="text" name="subject" value="{{.Ticket.Subject}}" required>
     </label>
     <label>Description
-      <textarea name="description" rows="4">{{.Ticket.Description}}</textarea>
+      <textarea name="description" rows="4" data-ai-rephrase>{{.Ticket.Description}}</textarea>
     </label>
     <label>Contact (CRM)
       <select name="contact_id">

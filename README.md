@@ -21,6 +21,7 @@ with no JS build step.
 - Discuss: channels & DMs, unread indicators, file attachments, emoji picker
 - Notifications: in-app bell + optional email delivery (Settings → Mail, admin-only)
 - User Access (Settings, admin-only): per-user, per-module allow/block (Projects, CRM, Helpdesk, Timesheets, Time Off, Calendar, Social Posts, Discuss) — a blocked module disappears from that user's nav, dashboard, and search results, and its routes 404
+- AI rephrasing: a "Rephrase" button on task/ticket descriptions, wiki pages, and social posts, backed by any OpenAI-compatible endpoint (Settings → AI rephrasing, admin-only — set a base URL, API key, and model; works unmodified against OpenAI itself, Ollama's OpenAI-compatible mode, OpenRouter, Groq, etc.)
 - Dark mode, mobile hamburger nav, installable as a PWA
 
 ## Running locally

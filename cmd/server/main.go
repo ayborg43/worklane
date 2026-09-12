@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/sociolytik/odoo-clone/internal/activities"
+	"github.com/sociolytik/odoo-clone/internal/ai"
 	"github.com/sociolytik/odoo-clone/internal/attachments"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/calendar"
@@ -103,7 +104,10 @@ func main() {
 	attachmentsRepo := attachments.NewRepo(pool)
 
 	settingsRepo := settings.NewRepo(pool)
-	settingsHandlers := settings.NewHandlers(settingsRepo, authRepo, renderer, cfg.BaseURL)
+	aiRepo := ai.NewRepo(pool)
+	aiHandlers := ai.NewHandlers(aiRepo)
+	aiHandlers.MountRoutes(mux, authMW)
+	settingsHandlers := settings.NewHandlers(settingsRepo, authRepo, aiRepo, renderer, cfg.BaseURL)
 	settingsHandlers.MountRoutes(mux, authMW)
 
 	notificationsRepo := notifications.NewRepo(pool, authRepo, settingsRepo, cfg.BaseURL)

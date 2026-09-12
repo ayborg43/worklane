@@ -6,7 +6,7 @@
   {{if .Accounts}}
   <form hx-post="/social/posts" hx-target="#social-body" hx-swap="outerHTML">
     <label>What do you want to post?
-      <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…"></textarea>
+      <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…" data-ai-rephrase></textarea>
     </label>
     <label>Post to
       <div class="member-row-wrap" style="gap:0.9rem; flex-wrap:wrap;">

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/sociolytik/odoo-clone/internal/ai"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/web"
 )
@@ -17,18 +18,21 @@ import (
 type Handlers struct {
 	Repo     *Repo
 	Users    *auth.Repo
+	AI       *ai.Repo
 	Renderer *web.Renderer
 	BaseURL  string
 }
 
-func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer, baseURL string) *Handlers {
-	return &Handlers{Repo: repo, Users: users, Renderer: renderer, BaseURL: baseURL}
+func NewHandlers(repo *Repo, users *auth.Repo, aiRepo *ai.Repo, renderer *web.Renderer, baseURL string) *Handlers {
+	return &Handlers{Repo: repo, Users: users, AI: aiRepo, Renderer: renderer, BaseURL: baseURL}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /settings", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Show))))
 	mux.Handle("POST /settings/mail", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateMail))))
 	mux.Handle("POST /settings/mail/test", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.TestMail))))
+	mux.Handle("POST /settings/ai", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateAI))))
+	mux.Handle("POST /settings/ai/test", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.TestAI))))
 	mux.Handle("POST /settings/access/{userID}/{module}/toggle", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.ToggleModuleAccess))))
 	mux.Handle("POST /settings/users", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.CreateUser))))
 	mux.Handle("POST /settings/access/{userID}/password", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.SetPassword))))
@@ -39,6 +43,12 @@ type settingsData struct {
 	Mail    MailSettings
 	Message string
 	Error   string
+
+	// Populated only for the full-page Show render and the AI-section
+	// fragment re-render.
+	AI        ai.Settings
+	AIMessage string
+	AIError   string
 
 	// Populated only for the full-page Show render and the User Access
 	// fragment re-render — the mail-section fragment renders never touch
@@ -56,6 +66,11 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	aiCfg, err := h.AI.Get(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	users, err := h.loadUsersWithAccess(r)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -64,11 +79,12 @@ func (h *Handlers) Show(w http.ResponseWriter, r *http.Request) {
 	data := settingsData{
 		PageData:     auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
 		Mail:         *cfg,
+		AI:           *aiCfg,
 		Users:        users,
 		Modules:      auth.AllModules,
 		ModuleLabels: auth.ModuleLabels,
 	}
-	h.Renderer.Render(w, http.StatusOK, "settings/index.html", data, "settings/mail_section.html", "settings/users_section.html")
+	h.Renderer.Render(w, http.StatusOK, "settings/index.html", data, "settings/mail_section.html", "settings/ai_section.html", "settings/users_section.html")
 }
 
 func (h *Handlers) UpdateMail(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +159,70 @@ func (h *Handlers) renderSection(w http.ResponseWriter, r *http.Request, cfg Mai
 		Error:    errMsg,
 	}
 	h.Renderer.RenderFragment(w, http.StatusOK, "settings/mail_section.html", data)
+}
+
+// UpdateAI saves the OpenAI-compatible endpoint the "Rephrase" button
+// calls. An empty api_key field means "leave the saved key unchanged" —
+// same convention as UpdateMail's password field, and for the same
+// reason: the form never echoes the real key back.
+func (h *Handlers) UpdateAI(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+
+	current, err := h.AI.Get(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	apiKey := r.FormValue("api_key")
+	if apiKey == "" {
+		apiKey = current.APIKey
+	}
+
+	cfg := ai.Settings{
+		BaseURL: strings.TrimSpace(r.FormValue("base_url")),
+		APIKey:  apiKey,
+		Model:   strings.TrimSpace(r.FormValue("model")),
+	}
+	if err := h.AI.Update(r.Context(), cfg, user.ID); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	updated, err := h.AI.Get(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderAISection(w, r, *updated, "AI settings saved.", "")
+}
+
+func (h *Handlers) TestAI(w http.ResponseWriter, r *http.Request) {
+	cfg, err := h.AI.Get(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	result, err := h.AI.Rephrase(r.Context(), "This is a test of the AI connection.")
+	if err != nil {
+		h.renderAISection(w, r, *cfg, "", "Test failed: "+err.Error())
+		return
+	}
+	h.renderAISection(w, r, *cfg, `Test succeeded — the model replied: "`+result+`"`, "")
+}
+
+func (h *Handlers) renderAISection(w http.ResponseWriter, r *http.Request, cfg ai.Settings, message, errMsg string) {
+	data := settingsData{
+		PageData:  auth.PageData{CurrentUser: auth.UserFromContext(r.Context())},
+		AI:        cfg,
+		AIMessage: message,
+		AIError:   errMsg,
+	}
+	h.Renderer.RenderFragment(w, http.StatusOK, "settings/ai_section.html", data)
 }
 
 // loadUsersWithAccess fetches every user and attaches each one's

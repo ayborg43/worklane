@@ -130,6 +130,60 @@
       });
     })();
   </script>
+  <script>
+    (function () {
+      // Any textarea/input marked data-ai-rephrase gets a "Rephrase"
+      // button appended right after it — one global mechanism rather than
+      // per-page wiring, since it needs to run both on first load and
+      // after every htmx swap (a fragment re-render brings back a fresh,
+      // unwired field).
+      function wire(field) {
+        if (field.dataset.aiWired) return;
+        field.dataset.aiWired = "true";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "link-button ai-rephrase-btn";
+        btn.textContent = "Rephrase";
+        btn.addEventListener("click", function () {
+          var text = field.value.trim();
+          if (!text) return;
+          var original = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = "Rephrasing…";
+          fetch("/ai/rephrase", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ text: text }),
+          })
+            .then(function (res) {
+              if (res.status === 401) {
+                window.location.href = "/login";
+                throw new Error("unauthenticated");
+              }
+              if (!res.ok) return res.text().then(function (t) { throw new Error(t || "Rephrase failed"); });
+              return res.json();
+            })
+            .then(function (data) {
+              field.value = data.text;
+              field.dispatchEvent(new Event("input", { bubbles: true }));
+              field.focus();
+            })
+            .catch(function (err) { window.alert(err.message || "Couldn't rephrase."); })
+            .finally(function () {
+              btn.disabled = false;
+              btn.textContent = original;
+            });
+        });
+        field.insertAdjacentElement("afterend", btn);
+      }
+      function scan(root) {
+        (root || document).querySelectorAll("[data-ai-rephrase]").forEach(wire);
+      }
+      scan(document);
+      document.body.addEventListener("htmx:afterSwap", function (e) { scan(e.target); });
+    })();
+  </script>
 </body>
 </html>
 {{end}}

@@ -1,0 +1,28 @@
+<div id="ai-settings" class="card" style="max-width:560px;">
+  <h3 style="margin-top:0;">AI rephrasing</h3>
+  <p style="margin-top:-0.5rem; color:var(--text-muted);">
+    Configure an OpenAI-compatible endpoint to power the "Rephrase" button on task/ticket descriptions, wiki pages, and social posts.
+    {{if .AI.Configured}}Currently configured — using model <strong>{{.AI.Model}}</strong> at <strong>{{.AI.BaseURL}}</strong>.{{else}}Not configured yet — the Rephrase button will show an error until this is filled in.{{end}}
+  </p>
+
+  {{if .AIMessage}}<p class="alert alert-success">{{.AIMessage}}</p>{{end}}
+  {{if .AIError}}<p class="alert alert-error">{{.AIError}}</p>{{end}}
+
+  <form hx-post="/settings/ai" hx-target="#ai-settings" hx-swap="outerHTML">
+    <label>Base URL
+      <input type="text" name="base_url" value="{{.AI.BaseURL}}" placeholder="https://api.openai.com/v1">
+    </label>
+    <label>API key
+      <input type="password" name="api_key" autocomplete="new-password" placeholder="{{if .AI.APIKey}}•••••••• (unchanged — leave blank to keep){{else}}(none){{end}}">
+    </label>
+    <label>Model
+      <input type="text" name="model" value="{{.AI.Model}}" placeholder="gpt-4o-mini">
+    </label>
+    <div style="display:flex; gap:0.6rem; margin-top:0.75rem;">
+      <button type="submit">Save</button>
+      <button type="submit" hx-post="/settings/ai/test" hx-target="#ai-settings" hx-swap="outerHTML" class="secondary" {{if not .AI.Configured}}disabled{{end}}>Test connection</button>
+    </div>
+  </form>
+
+  {{if .AI.UpdatedByName}}<p style="font-size:0.8rem; margin-bottom:0; color:var(--text-muted);">Last updated by {{.AI.UpdatedByName}} on {{.AI.UpdatedAt.Format "Jan 2, 2006 15:04"}}.</p>{{end}}
+</div>
