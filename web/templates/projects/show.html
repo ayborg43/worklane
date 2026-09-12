@@ -4,6 +4,9 @@
     <h1><a href="/projects" style="color:inherit;">Projects</a> / {{.Project.Name}}</h1>
     {{if .Project.Description}}<p style="color:var(--text-muted);margin:0.25rem 0 0;">{{.Project.Description}}</p>{{end}}
   </div>
+  {{if eq .CurrentUser.ID .Project.OwnerID}}
+  <a href="/projects/{{.Project.ID}}/invoices" class="button secondary">Invoices</a>
+  {{end}}
 </div>
 
 {{template "members_section.html" .}}

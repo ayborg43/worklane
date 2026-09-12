@@ -30,6 +30,7 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /timesheets", mw.RequireAuth(http.HandlerFunc(h.List)))
 	mux.Handle("POST /timesheets", mw.RequireAuth(http.HandlerFunc(h.Create)))
 	mux.Handle("DELETE /timesheets/{id}", mw.RequireAuth(http.HandlerFunc(h.Delete)))
+	mux.Handle("POST /timesheets/{id}/billable", mw.RequireAuth(http.HandlerFunc(h.SetBillable)))
 	mux.Handle("GET /timesheets/approvals", mw.RequireAuth(http.HandlerFunc(h.Approvals)))
 	mux.Handle("POST /timesheets/{id}/approve", mw.RequireAuth(http.HandlerFunc(h.Approve)))
 	mux.Handle("POST /timesheets/{id}/reject", mw.RequireAuth(http.HandlerFunc(h.Reject)))
@@ -169,6 +170,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		WorkDate:    workDate,
 		Hours:       hours,
 		Description: strings.TrimSpace(r.FormValue("description")),
+		Billable:    r.FormValue("billable") != "",
 	}); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -187,6 +189,37 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.Repo.Delete(r.Context(), id, user.ID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			http.Error(w, "cannot delete: entry not found or already approved", http.StatusConflict)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderBody(w, r, weekStartFromRequest(r, "week"))
+}
+
+// SetBillable toggles an entry's billable flag from the week view's
+// checkbox — htmx submits it on change, no separate form/submit needed.
+func (h *Handlers) SetBillable(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	user := auth.UserFromContext(r.Context())
+	// This route is only ever hit via the week view's checkbox, whose
+	// hx-vals="js:{billable: event.target.checked}" sends the literal
+	// string "true"/"false" — unlike a native unchecked checkbox, which
+	// omits the field entirely. Both conventions are accepted so a plain
+	// form post (e.g. from a test) also works the intuitive way.
+	v := r.FormValue("billable")
+	billable := v == "true" || v == "on"
+	if err := h.Repo.SetBillable(r.Context(), id, user.ID, billable); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			http.Error(w, "cannot update: entry not found or already invoiced", http.StatusConflict)
 			return
 		}
 		http.Error(w, "internal error", http.StatusInternalServerError)

@@ -36,7 +36,8 @@ func nullInt64(v int64) sql.NullInt64 {
 const entrySelect = `
 	SELECT e.id, e.user_id, u.name, e.project_id, p.name, p.owner_id, COALESCE(e.task_id, 0), COALESCE(t.name, ''),
 	       e.work_date, e.hours, e.description, e.status, COALESCE(e.approved_by, 0), COALESCE(a.name, ''),
-	       e.approved_at, e.rejection_reason, e.created_at, e.updated_at
+	       e.approved_at, e.rejection_reason, e.billable, COALESCE(e.invoice_id, 0), e.invoiced_at,
+	       e.created_at, e.updated_at
 	FROM timesheet_entries e
 	JOIN users u ON u.id = e.user_id
 	JOIN projects p ON p.id = e.project_id
@@ -47,7 +48,7 @@ func scanEntryRow(row pgx.Row) (*Entry, error) {
 	var e Entry
 	err := row.Scan(&e.ID, &e.UserID, &e.UserName, &e.ProjectID, &e.ProjectName, &e.ProjectOwnerID, &e.TaskID, &e.TaskName,
 		&e.WorkDate, &e.Hours, &e.Description, &e.Status, &e.ApprovedBy, &e.ApproverName,
-		&e.ApprovedAt, &e.RejectionReason, &e.CreatedAt, &e.UpdatedAt)
+		&e.ApprovedAt, &e.RejectionReason, &e.Billable, &e.InvoiceID, &e.InvoicedAt, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -64,7 +65,7 @@ func scanEntryRows(rows pgx.Rows) ([]Entry, error) {
 		var e Entry
 		if err := rows.Scan(&e.ID, &e.UserID, &e.UserName, &e.ProjectID, &e.ProjectName, &e.ProjectOwnerID, &e.TaskID, &e.TaskName,
 			&e.WorkDate, &e.Hours, &e.Description, &e.Status, &e.ApprovedBy, &e.ApproverName,
-			&e.ApprovedAt, &e.RejectionReason, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			&e.ApprovedAt, &e.RejectionReason, &e.Billable, &e.InvoiceID, &e.InvoicedAt, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -75,14 +76,31 @@ func scanEntryRows(rows pgx.Rows) ([]Entry, error) {
 func (r *Repo) Create(ctx context.Context, userID int64, in EntryInput) (*Entry, error) {
 	var id int64
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO timesheet_entries (user_id, project_id, task_id, work_date, hours, description)
-		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-		userID, in.ProjectID, nullInt64(in.TaskID), in.WorkDate, in.Hours, in.Description,
+		INSERT INTO timesheet_entries (user_id, project_id, task_id, work_date, hours, description, billable)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		userID, in.ProjectID, nullInt64(in.TaskID), in.WorkDate, in.Hours, in.Description, in.Billable,
 	).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
 	return r.Get(ctx, id)
+}
+
+// SetBillable is only reachable by the entry's own logger, and only before
+// it's been invoiced — changing billability after an invoice has already
+// snapshotted the entry wouldn't affect that invoice and would just be
+// confusing to see flip on a settled bill.
+func (r *Repo) SetBillable(ctx context.Context, id, userID int64, billable bool) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE timesheet_entries SET billable = $1 WHERE id = $2 AND user_id = $3 AND invoiced_at IS NULL`,
+		billable, id, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *Repo) Get(ctx context.Context, id int64) (*Entry, error) {

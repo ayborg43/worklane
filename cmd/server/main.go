@@ -19,6 +19,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/config"
 	"github.com/sociolytik/odoo-clone/internal/crm"
 	"github.com/sociolytik/odoo-clone/internal/db"
+	"github.com/sociolytik/odoo-clone/internal/invoicing"
 	"github.com/sociolytik/odoo-clone/internal/notifications"
 	"github.com/sociolytik/odoo-clone/internal/projects"
 	"github.com/sociolytik/odoo-clone/internal/settings"
@@ -114,6 +115,10 @@ func main() {
 	timesheetsRepo := timesheets.NewRepo(pool)
 	timesheetsHandlers := timesheets.NewHandlers(timesheetsRepo, projectsRepo, notificationsRepo, renderer)
 	timesheetsHandlers.MountRoutes(mux, authMW)
+
+	invoicingRepo := invoicing.NewRepo(pool)
+	invoicingHandlers := invoicing.NewHandlers(invoicingRepo, renderer)
+	invoicingHandlers.MountRoutes(mux, authMW)
 
 	calendarHandlers := calendar.NewHandlers(projectsRepo, timesheetsRepo, renderer)
 	calendarHandlers.MountRoutes(mux, authMW)

@@ -8,6 +8,10 @@ import "time"
 // 0-sentinel convention; ApprovedAt is a genuine pointer (a deliberate
 // deviation — there's no sensible zero value for "unset" on a timestamp the
 // way 0 works for an int64 id).
+// Billable defaults to true (most logged time is billable) — InvoiceID
+// (0-sentinel) and InvoicedAt (genuine pointer, same ApprovedAt rationale)
+// are set together once an invoice snapshots this entry, after which the
+// billable flag is locked (see Repo.SetBillable).
 type Entry struct {
 	ID              int64
 	UserID          int64
@@ -25,6 +29,9 @@ type Entry struct {
 	ApproverName    string
 	ApprovedAt      *time.Time
 	RejectionReason string
+	Billable        bool
+	InvoiceID       int64
+	InvoicedAt      *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -35,4 +42,5 @@ type EntryInput struct {
 	WorkDate    time.Time
 	Hours       float64
 	Description string
+	Billable    bool
 }

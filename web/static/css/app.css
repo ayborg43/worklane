@@ -814,6 +814,23 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
 .activity-add-form input[type="text"] { margin-top: 0; flex: 1 1 160px; min-width: 0; }
 .activity-add-form button { flex-shrink: 0; white-space: nowrap; }
 
+/* ---------- invoicing ---------- */
+
+.invoice-sheet { padding: 1.5rem; }
+.invoice-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+
+/* The print button just calls window.print() — no PDF library needed,
+   since every browser's own "Print > Save as PDF" already covers that.
+   These rules only need to strip the chrome (nav, actions, theme
+   background) so what prints looks like an actual invoice document. */
+@media print {
+  .no-print, .nav { display: none !important; }
+  body { background: #fff; color: #000; }
+  .container { max-width: none; padding: 0; margin: 0; }
+  .invoice-sheet { border: none; box-shadow: none; padding: 0; }
+  .card { border: none; box-shadow: none; background: transparent; }
+}
+
 /* ---------- reports ---------- */
 
 .bar-row {

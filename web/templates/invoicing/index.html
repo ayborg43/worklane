@@ -1,0 +1,49 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/projects/{{.ProjectID}}" style="color:inherit;">{{.ProjectName}}</a> / Invoices</h1>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Billable rate</h3>
+  <form hx-post="/projects/{{.ProjectID}}/invoices/rate" class="activity-add-form">
+    <span>$</span>
+    <input type="number" name="rate" min="0" step="0.01" value="{{printf "%.2f" .BillableRate}}" style="max-width:120px;">
+    <span>/ hour</span>
+    <button type="submit">Save</button>
+  </form>
+  <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0;">Applied to every approved, billable timesheet entry included in a generated invoice.</p>
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;" {{if .Error}}open{{end}}>
+  <summary>Generate invoice</summary>
+  {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/projects/{{.ProjectID}}/invoices" style="margin-top:1rem;">
+    <label>Period start
+      <input type="date" name="period_start" required>
+    </label>
+    <label>Period end
+      <input type="date" name="period_end" required>
+    </label>
+    <button type="submit">Generate</button>
+  </form>
+  <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0;">Snapshots every approved, billable, not-yet-invoiced hour logged in that range at the current billable rate. Hours already on another invoice are never billed twice.</p>
+</details>
+
+<div class="card">
+  <h3 style="margin-top:0;">Past invoices</h3>
+  {{if .Invoices}}
+  <ul class="member-list">
+    {{range .Invoices}}
+    <li class="member-row member-row-wrap">
+      <a href="/invoices/{{.ID}}">{{.Number}}</a>
+      <span style="color:var(--text-muted); font-size:0.85rem;">{{.PeriodStart.Format "Jan 2"}} &ndash; {{.PeriodEnd.Format "Jan 2, 2006"}}</span>
+      <span class="badge{{if eq .Status "paid"}} badge-approved{{else if eq .Status "sent"}} badge-submitted{{end}}">{{.Status}}</span>
+      <span style="margin-left:auto; font-weight:600;">${{printf "%.2f" .TotalAmount}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No invoices generated yet.</p>
+  {{end}}
+</div>
+{{end}}
