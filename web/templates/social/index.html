@@ -1,0 +1,10 @@
+{{define "content"}}
+<div class="page-header">
+  <div>
+    <h1>Social Posts</h1>
+  </div>
+  {{if .CurrentUser.IsAdmin}}<a href="/social/connections" class="button secondary">Connections</a>{{end}}
+</div>
+
+{{template "index_body.html" .}}
+{{end}}

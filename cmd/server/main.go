@@ -27,6 +27,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/projects"
 	"github.com/sociolytik/odoo-clone/internal/search"
 	"github.com/sociolytik/odoo-clone/internal/settings"
+	"github.com/sociolytik/odoo-clone/internal/social"
 	"github.com/sociolytik/odoo-clone/internal/timeoff"
 	"github.com/sociolytik/odoo-clone/internal/timesheets"
 	"github.com/sociolytik/odoo-clone/internal/web"
@@ -157,6 +158,10 @@ func main() {
 	portalHandlers := portal.NewHandlers(portalRepo, settingsRepo, renderer, cfg.BaseURL, cfg.CookieSecure)
 	portalHandlers.MountRoutes(mux, authMW, portalMW)
 
+	socialRepo := social.NewRepo(pool)
+	socialHandlers := social.NewHandlers(socialRepo, renderer, cfg.BaseURL)
+	socialHandlers.MountRoutes(mux, authMW)
+
 	chatHub := chat.NewHub()
 	go chatHub.Run()
 	chatRepo := chat.NewRepo(pool)
@@ -189,6 +194,9 @@ func main() {
 				if err := portalRepo.DeleteExpiredMagicLinks(ctx); err != nil {
 					log.Printf("cleanup expired portal magic links: %v", err)
 				}
+				if err := socialRepo.DeleteExpiredOAuthStates(ctx); err != nil {
+					log.Printf("cleanup expired social oauth states: %v", err)
+				}
 			}
 		}
 	}()
@@ -207,6 +215,22 @@ func main() {
 			case <-ticker.C:
 				projectsHandlers.NotifyDueTasks(ctx)
 				activitiesHandlers.NotifyDueActivities(ctx)
+			}
+		}
+	}()
+
+	// Scheduled social posts: a post created for "now" publishes
+	// synchronously inside the request instead of waiting for this — this
+	// ticker only ever picks up posts whose scheduled_at has arrived.
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				socialHandlers.PublishDuePosts(ctx)
 			}
 		}
 	}()

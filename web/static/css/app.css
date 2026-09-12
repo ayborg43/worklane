@@ -99,6 +99,7 @@ h3 { font-size: 1.05rem; }
 p { line-height: 1.55; }
 
 a { color: var(--primary); text-decoration: none; }
+code { overflow-wrap: anywhere; }
 a:hover { text-decoration: underline; }
 
 :focus-visible {

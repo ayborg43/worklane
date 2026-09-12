@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/social" style="color:inherit;">Social Posts</a> / Connections</h1>
+</div>
+
+{{if .Message}}<p class="alert alert-success">{{.Message}}</p>{{end}}
+{{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Platforms</h3>
+  {{range .Credentials}}
+  {{$platform := .Platform}}
+  <div style="padding:0.9rem 0; border-bottom:1px solid var(--border);">
+    <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.5rem;">
+      <strong>{{.Label}}</strong>
+      {{if not .Implemented}}<span class="badge">coming soon</span>{{end}}
+    </div>
+    {{if .Implemented}}
+    <form method="post" action="/social/connections/credentials/{{$platform}}" class="activity-add-form" style="margin:0;">
+      <input type="text" name="client_id" placeholder="Client ID" value="{{.ClientID}}" style="flex:1 1 220px; min-width:0;">
+      <input type="password" name="client_secret" placeholder="{{if .ClientSecret}}Client secret (unchanged){{else}}Client secret{{end}}" style="flex:1 1 220px; min-width:0;">
+      <button type="submit">Save</button>
+      <a href="/social/connect/{{$platform}}" class="button secondary">Connect {{.Label}}</a>
+    </form>
+    {{else}}
+    <p class="empty-state" style="padding:0.6rem;">Not wired up to post yet — same connections framework, no working integration for {{.Label}} in this build.</p>
+    {{end}}
+  </div>
+  {{end}}
+  <p style="color:var(--text-muted); font-size:0.85rem; margin:0.9rem 0 0;">
+    Redirect URI to register with each platform's developer app:
+    <code>&lt;your domain&gt;/social/oauth/&lt;platform&gt;/callback</code>
+    (e.g. <code>https://yourapp.com/social/oauth/x/callback</code>).
+  </p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Connected accounts</h3>
+  {{if .Accounts}}
+  <ul class="member-list">
+    {{range .Accounts}}
+    <li class="member-row member-row-wrap">
+      <span class="badge">{{.PlatformName}}</span>
+      <span>{{.Label}}</span>
+      <span style="color:var(--text-muted); font-size:0.82rem;">connected by {{.ConnectedByName}}</span>
+      <form method="post" action="/social/accounts/{{.ID}}/disconnect" class="inline-form" onsubmit="return confirm('Disconnect {{.Label}}?');">
+        <button type="submit" class="link-button">Disconnect</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state">Nothing connected yet.</p>
+  {{end}}
+</div>
+{{end}}

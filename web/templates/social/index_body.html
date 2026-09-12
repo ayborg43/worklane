@@ -1,0 +1,60 @@
+<div id="social-body">
+{{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">New post</h3>
+  {{if .Accounts}}
+  <form hx-post="/social/posts" hx-target="#social-body" hx-swap="outerHTML">
+    <label>What do you want to post?
+      <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…"></textarea>
+    </label>
+    <label>Post to
+      <div class="member-row-wrap" style="gap:0.9rem; flex-wrap:wrap;">
+        {{range .Accounts}}
+        <label style="display:inline-flex; align-items:center; gap:0.4rem; margin-bottom:0; font-weight:400; font-size:0.9rem; text-transform:none; letter-spacing:normal; color:var(--text);">
+          <input type="checkbox" name="account_ids" value="{{.ID}}">
+          {{.Label}} <span class="badge">{{.Platform}}</span>
+        </label>
+        {{end}}
+      </div>
+    </label>
+    <label>Schedule for later (optional)
+      <input type="datetime-local" name="scheduled_at" style="max-width:220px;">
+    </label>
+    <button type="submit">Post</button>
+  </form>
+  {{else}}
+  <p class="empty-state">
+    No connected accounts yet.
+    {{if .CurrentUser.IsAdmin}}Head to <a href="/social/connections">Connections</a> to connect one.{{else}}Ask an admin to connect one in Settings → Connections.{{end}}
+  </p>
+  {{end}}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Recent posts</h3>
+  {{if .Posts}}
+  <ul class="activity-list">
+    {{range .Posts}}
+    <li class="activity-row" style="align-items:flex-start;">
+      <div style="flex:1 1 auto; min-width:0;">
+        <div>{{.Body}}</div>
+        <div style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
+          {{range .Targets}}
+          <span class="badge{{if eq .Status "posted"}} badge-approved{{else if eq .Status "failed"}} badge-rejected{{else}} badge-submitted{{end}}" title="{{.ErrorMessage}}">
+            {{.AccountLabel}} &middot; {{.Status}}
+          </span>
+          {{end}}
+        </div>
+      </div>
+      <span class="activity-due" style="white-space:nowrap;">
+        {{if .IsScheduled}}scheduled {{.ScheduledAt.Format "Jan 2, 15:04"}}{{else}}{{.CreatedAt.Format "Jan 2, 15:04"}}{{end}}
+      </span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state">No posts yet.</p>
+  {{end}}
+</div>
+</div>
