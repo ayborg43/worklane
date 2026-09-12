@@ -1,0 +1,7 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/projects/{{.ProjectID}}/wiki" style="color:inherit;">{{.ProjectName}} / Wiki</a> / {{.Page.Title}}</h1>
+</div>
+
+{{template "page_body.html" .}}
+{{end}}

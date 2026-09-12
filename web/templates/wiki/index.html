@@ -1,0 +1,34 @@
+{{define "content"}}
+<div class="page-header">
+  <h1><a href="/projects/{{.ProjectID}}" style="color:inherit;">{{.ProjectName}}</a> / Wiki</h1>
+</div>
+
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>New page</summary>
+  <form method="post" action="/projects/{{.ProjectID}}/wiki" style="margin-top:1rem;">
+    <label>Title
+      <input type="text" name="title" required autofocus>
+    </label>
+    <label>Content
+      <textarea name="body" rows="8" placeholder="# Heading&#10;**bold**, *italic*, `code`&#10;- list item&#10;[link text](https://example.com)&#10;[[Another Page Title]]"></textarea>
+    </label>
+    <button type="submit">Create page</button>
+  </form>
+</details>
+
+<div class="card">
+  <h3 style="margin-top:0;">Pages</h3>
+  {{if .Pages}}
+  <ul class="member-list">
+    {{range .Pages}}
+    <li class="member-row">
+      <a href="/projects/{{$.ProjectID}}/wiki/{{.ID}}">{{.Title}}</a>
+      <span style="color:var(--text-muted); font-size:0.82rem; margin-left:auto;">Updated {{.UpdatedAt.Format "Jan 2, 2006"}} by {{.UpdatedByName}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty-state" style="padding:0.75rem 0;">No wiki pages yet.</p>
+  {{end}}
+</div>
+{{end}}

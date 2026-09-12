@@ -814,6 +814,24 @@ table input, table select { padding: 0.45rem 0.55rem; font-size: 0.88rem; }
 .activity-add-form input[type="text"] { margin-top: 0; flex: 1 1 160px; min-width: 0; }
 .activity-add-form button { flex-shrink: 0; white-space: nowrap; }
 
+/* ---------- wiki ---------- */
+
+.wiki-content { line-height: 1.65; }
+.wiki-content h1, .wiki-content h2, .wiki-content h3 { margin: 1.3rem 0 0.6rem; }
+.wiki-content h1:first-child, .wiki-content h2:first-child, .wiki-content h3:first-child { margin-top: 0; }
+.wiki-content p { margin: 0 0 0.9rem; }
+.wiki-content ul { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.wiki-content li { margin-bottom: 0.3rem; }
+.wiki-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+}
+.wiki-content a.wiki-link { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+
 /* ---------- invoicing ---------- */
 
 .invoice-sheet { padding: 1.5rem; }

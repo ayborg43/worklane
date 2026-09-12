@@ -25,6 +25,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/settings"
 	"github.com/sociolytik/odoo-clone/internal/timesheets"
 	"github.com/sociolytik/odoo-clone/internal/web"
+	"github.com/sociolytik/odoo-clone/internal/wiki"
 )
 
 const attachmentsDir = "data/attachments"
@@ -119,6 +120,10 @@ func main() {
 	invoicingRepo := invoicing.NewRepo(pool)
 	invoicingHandlers := invoicing.NewHandlers(invoicingRepo, renderer)
 	invoicingHandlers.MountRoutes(mux, authMW)
+
+	wikiRepo := wiki.NewRepo(pool)
+	wikiHandlers := wiki.NewHandlers(wikiRepo, projectsRepo, renderer)
+	wikiHandlers.MountRoutes(mux, authMW)
 
 	calendarHandlers := calendar.NewHandlers(projectsRepo, timesheetsRepo, renderer)
 	calendarHandlers.MountRoutes(mux, authMW)

@@ -1,0 +1,25 @@
+<div id="wiki-page" class="card" x-data="{editing: false}">
+  <div x-show="!editing">
+    <div class="wiki-content">
+      {{.RenderedBody}}
+    </div>
+    <div style="display:flex; gap:0.6rem; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+      <button type="button" x-on:click="editing=true">Edit</button>
+      <button type="button" hx-delete="/projects/{{.ProjectID}}/wiki/{{.Page.ID}}" hx-confirm="Delete this page?" class="link-button">Delete</button>
+    </div>
+    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:0; margin-top:0.75rem;">Last updated {{.Page.UpdatedAt.Format "Jan 2, 2006 15:04"}} by {{.Page.UpdatedByName}}</p>
+  </div>
+
+  <form x-show="editing" x-cloak hx-put="/projects/{{.ProjectID}}/wiki/{{.Page.ID}}" hx-target="#wiki-page" hx-swap="outerHTML">
+    <label>Title
+      <input type="text" name="title" value="{{.Page.Title}}" required>
+    </label>
+    <label>Content
+      <textarea name="body" rows="14">{{.Page.Body}}</textarea>
+    </label>
+    <div style="display:flex; gap:0.6rem;">
+      <button type="submit">Save</button>
+      <button type="button" class="secondary" x-on:click="editing=false">Cancel</button>
+    </div>
+  </form>
+</div>
