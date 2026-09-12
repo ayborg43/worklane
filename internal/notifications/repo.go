@@ -85,6 +85,10 @@ func kindLabel(kind string) string {
 		return "Timesheet entry approved"
 	case "timesheet_rejected":
 		return "Timesheet entry rejected"
+	case "leave_approved":
+		return "Time off request approved"
+	case "leave_rejected":
+		return "Time off request rejected"
 	default:
 		return "New notification"
 	}

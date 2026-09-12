@@ -1,0 +1,31 @@
+<div id="timeoff-approvals-body">
+{{if .}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td data-label="Employee">{{.UserName}}</td>
+        <td data-label="Type" style="text-transform:capitalize;">{{.LeaveType}}</td>
+        <td data-label="Dates">{{.StartDate.Format "Jan 2"}} &ndash; {{.EndDate.Format "Jan 2, 2006"}}</td>
+        <td data-label="Days">{{.Days}}</td>
+        <td data-label="Reason">{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td>
+        <td data-label="Actions" class="approval-actions">
+          <button type="button" class="success" hx-post="/timeoff/{{.ID}}/approve" hx-target="#timeoff-approvals-body" hx-swap="outerHTML">Approve</button>
+          <form hx-post="/timeoff/{{.ID}}/reject" hx-target="#timeoff-approvals-body" hx-swap="outerHTML" class="approval-reject-form">
+            <input type="text" name="reason" placeholder="Reason" required>
+            <button type="submit" class="danger">Reject</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+{{else}}
+  <p class="empty-state">Nothing pending approval.</p>
+{{end}}
+</div>

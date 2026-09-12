@@ -27,6 +27,7 @@ import (
 	"github.com/sociolytik/odoo-clone/internal/projects"
 	"github.com/sociolytik/odoo-clone/internal/search"
 	"github.com/sociolytik/odoo-clone/internal/settings"
+	"github.com/sociolytik/odoo-clone/internal/timeoff"
 	"github.com/sociolytik/odoo-clone/internal/timesheets"
 	"github.com/sociolytik/odoo-clone/internal/web"
 	"github.com/sociolytik/odoo-clone/internal/wiki"
@@ -117,6 +118,10 @@ func main() {
 	timesheetsRepo := timesheets.NewRepo(pool)
 	timesheetsHandlers := timesheets.NewHandlers(timesheetsRepo, projectsRepo, notificationsRepo, renderer)
 	timesheetsHandlers.MountRoutes(mux, authMW)
+
+	timeoffRepo := timeoff.NewRepo(pool)
+	timeoffHandlers := timeoff.NewHandlers(timeoffRepo, notificationsRepo, renderer)
+	timeoffHandlers.MountRoutes(mux, authMW)
 
 	invoicingRepo := invoicing.NewRepo(pool)
 	invoicingHandlers := invoicing.NewHandlers(invoicingRepo, renderer)

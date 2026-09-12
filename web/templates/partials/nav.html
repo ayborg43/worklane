@@ -28,6 +28,8 @@
       <button type="button" class="nav-more-trigger" x-on:click="open=!open" :aria-expanded="open.toString()">More</button>
       <div class="nav-more-dropdown" x-show="open" x-cloak>
         <a href="/timesheets/approvals">Approvals</a>
+        <a href="/timeoff">Time Off</a>
+        {{if .CurrentUser.IsAdmin}}<a href="/timeoff/approvals">Time Off Approvals</a>{{end}}
         <a href="/reports">Reports</a>
         <a href="/calendar">Calendar</a>
         <a href="/activities">Activities</a>
@@ -41,6 +43,8 @@
          any stylesheet override, so this is a separate, always-flat set
          of links rather than trying to force the same nodes to show. -->
     <a href="/timesheets/approvals" class="nav-more-mobile-link">Approvals</a>
+    <a href="/timeoff" class="nav-more-mobile-link">Time Off</a>
+    {{if .CurrentUser.IsAdmin}}<a href="/timeoff/approvals" class="nav-more-mobile-link">Time Off Approvals</a>{{end}}
     <a href="/reports" class="nav-more-mobile-link">Reports</a>
     <a href="/calendar" class="nav-more-mobile-link">Calendar</a>
     <a href="/activities" class="nav-more-mobile-link">Activities</a>

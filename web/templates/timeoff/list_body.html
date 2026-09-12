@@ -1,0 +1,57 @@
+<div id="timeoff-body">
+<details class="card" style="margin-bottom:1.5rem;">
+  <summary>Request time off</summary>
+  <form hx-post="/timeoff" hx-target="#timeoff-body" hx-swap="outerHTML" style="margin-top:1rem;">
+    <label>Type
+      <select name="leave_type">
+        <option value="vacation">Vacation</option>
+        <option value="sick">Sick</option>
+        <option value="unpaid">Unpaid</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <label>Start date
+      <input type="date" name="start_date" required>
+    </label>
+    <label>End date
+      <input type="date" name="end_date" required>
+    </label>
+    <label>Reason (optional)
+      <textarea name="reason" rows="2"></textarea>
+    </label>
+    <button type="submit">Submit request</button>
+  </form>
+</details>
+
+<div class="card">
+  <h3 style="margin-top:0;">Your requests</h3>
+  {{if .}}
+  <div class="table-scroll">
+  <table class="responsive-table">
+    <thead>
+      <tr><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td data-label="Type" style="text-transform:capitalize;">{{.LeaveType}}</td>
+        <td data-label="Dates">{{.StartDate.Format "Jan 2"}} &ndash; {{.EndDate.Format "Jan 2, 2006"}}</td>
+        <td data-label="Days">{{.Days}}</td>
+        <td data-label="Reason">{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td>
+        <td data-label="Status">
+          <span class="badge badge-{{.Status}}">{{.Status}}</span>
+          {{if eq .Status "rejected"}}<span title="{{.RejectionReason}}">&#9432;</span>{{end}}
+        </td>
+        <td data-label="Actions">
+          {{if eq .Status "submitted"}}<button type="button" hx-delete="/timeoff/{{.ID}}" hx-target="#timeoff-body" hx-swap="outerHTML" hx-confirm="Withdraw this request?" class="link-button">Withdraw</button>{{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <p class="empty-state">No time off requests yet.</p>
+  {{end}}
+</div>
+</div>
