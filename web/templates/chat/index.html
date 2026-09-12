@@ -39,7 +39,7 @@
     {{if .ActiveChannel}}
     <h2 style="margin-top:0;">{{if eq .ActiveChannel.Kind "dm"}}{{.ActiveChannel.OtherUserName}}{{else}}# {{.ActiveChannel.Name}}{{end}}</h2>
     <div hx-ext="ws" ws-connect="/chat/ws/{{.ActiveChannel.ID}}" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-      <div id="messages">
+      <div id="messages" data-current-user-id="{{$.CurrentUser.ID}}">
         {{range .Messages}}{{template "message_row.html" .}}{{end}}
       </div>
       <form ws-send class="chat-form" hx-on::ws-after-send="this.reset()">

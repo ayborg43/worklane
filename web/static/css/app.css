@@ -1218,8 +1218,16 @@ tr:target { animation: target-row-flash 2s ease-out; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.chat-message { margin-bottom: 0.9rem; }
+/* Own messages (data-user-id on the row matches #messages'
+   data-current-user-id — see message_row.html's inline script, since a
+   broadcast message is rendered once and fanned out identically to every
+   viewer, not per-viewer) align right instead of left, same convention
+   as any chat app. flex-direction:column + align-items keeps the meta
+   line, bubble, and any attachment all aligned together as one block
+   rather than needing text-align on each separately. */
+.chat-message { margin-bottom: 0.9rem; display: flex; flex-direction: column; align-items: flex-start; }
 .chat-message:last-child { margin-bottom: 0; }
+.chat-message.own { align-items: flex-end; }
 .chat-message .meta { font-size: 0.74rem; color: var(--text-faint); margin-bottom: 0.2rem; }
 .chat-message .author { font-weight: 700; color: var(--primary); }
 .chat-message .body {
@@ -1232,6 +1240,7 @@ tr:target { animation: target-row-flash 2s ease-out; }
   max-width: 42rem;
   line-height: 1.45;
 }
+.chat-message.own .body { background: var(--primary-light); border-color: var(--primary); }
 
 .chat-attachment-image {
   display: block;

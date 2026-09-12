@@ -1,4 +1,5 @@
-<div class="chat-message" hx-swap-oob="beforeend:#messages">
+<div hx-swap-oob="beforeend:#messages">
+<div class="chat-message" data-user-id="{{.UserID}}">
   <div class="meta"><span class="author">{{.UserName}}</span> &middot; {{.CreatedAt.Format "15:04"}}</div>
   {{if .Body}}<div class="body">{{.Body}}</div>{{end}}
   {{if .HasAttachment}}
@@ -16,5 +17,18 @@
     </a>
     {{end}}
   {{end}}
-  <script>(function () { var b = document.getElementById("messages"); if (b) b.scrollTop = b.scrollHeight; })();</script>
+  <script>(function () {
+    // A message is broadcast identically to every viewer in the channel
+    // (see internal/chat/hub.go — one rendered fragment, fanned out to
+    // every connection), so "is this my own message" can't be decided
+    // server-side; each viewer's own #messages carries their user id and
+    // this script (re-run for every row, on first load and on each
+    // real-time insert alike) compares against it locally.
+    var row = document.currentScript.closest(".chat-message");
+    var b = document.getElementById("messages");
+    if (!b) return;
+    if (row && row.dataset.userId === b.dataset.currentUserId) row.classList.add("own");
+    b.scrollTop = b.scrollHeight;
+  })();</script>
+</div>
 </div>
