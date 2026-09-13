@@ -28,8 +28,8 @@ var funcMap = template.FuncMap{
 
 // money formats a float64 as a comma-grouped decimal with exactly two places
 // (e.g. 48000 -> "48,000.00", -1234.5 -> "-1,234.50"). Templates still
-// supply the "$" themselves (${{money .X}}) — this only adds the digit
-// grouping printf "%.2f" doesn't do on its own.
+// supply the currency symbol themselves (₦{{money .X}}) — this only adds
+// the digit grouping printf "%.2f" doesn't do on its own.
 func money(v float64) string {
 	s := fmt.Sprintf("%.2f", v)
 	neg := strings.HasPrefix(s, "-")

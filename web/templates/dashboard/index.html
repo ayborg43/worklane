@@ -46,13 +46,13 @@
   {{if .CurrentUser.CanAccess "crm"}}
   <div class="card dashboard-kpi-card">
     <span class="dashboard-kpi-label">Pipeline value</span>
-    <span class="dashboard-kpi-value">${{money .PipelineValue}}</span>
+    <span class="dashboard-kpi-value">₦{{money .PipelineValue}}</span>
     {{if .TopOpportunities}}
     <ul class="dashboard-kpi-list">
       {{range .TopOpportunities}}
       <li>
         <a href="/crm/opportunities/{{.ID}}">{{.Name}}</a>
-        <span class="dashboard-kpi-meta">${{money .ValueAmount}}</span>
+        <span class="dashboard-kpi-meta">₦{{money .ValueAmount}}</span>
       </li>
       {{end}}
     </ul>
@@ -105,13 +105,13 @@
   {{if .CurrentUser.CanAccess "projects"}}
   <div class="card dashboard-kpi-card">
     <span class="dashboard-kpi-label">Total invoiced</span>
-    <span class="dashboard-kpi-value">${{money .TotalInvoiced}}</span>
+    <span class="dashboard-kpi-value">₦{{money .TotalInvoiced}}</span>
     {{if .TopInvoices}}
     <ul class="dashboard-kpi-list">
       {{range .TopInvoices}}
       <li>
         <a href="/invoices/{{.ID}}">{{.ProjectName}}</a>
-        <span class="dashboard-kpi-meta">${{money .TotalAmount}} &middot; {{.Status}}</span>
+        <span class="dashboard-kpi-meta">₦{{money .TotalAmount}} &middot; {{.Status}}</span>
       </li>
       {{end}}
     </ul>

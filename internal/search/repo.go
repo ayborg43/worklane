@@ -205,7 +205,7 @@ func (r *Repo) searchInvoices(ctx context.Context, userID int64, like string) ([
 		out = append(out, Result{
 			Kind:     "invoice",
 			Title:    fmt.Sprintf("Invoice #%d — %s", id, projectName),
-			Subtitle: fmt.Sprintf("%s · $%.2f", statusTitle(status), total),
+			Subtitle: fmt.Sprintf("%s · ₦%.2f", statusTitle(status), total),
 			URL:      fmt.Sprintf("/invoices/%d", id),
 		})
 	}

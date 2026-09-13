@@ -28,7 +28,7 @@
         {{range .Stages}}<option value="{{.ID}}" {{if eq .ID $stageID}}selected{{end}}>{{.Name}}</option>{{end}}
       </select>
     </label>
-    <label>Value ($)
+    <label>Value (₦)
       <input type="number" name="value_amount" min="0" step="0.01" value="{{.Opportunity.ValueAmount}}">
     </label>
     <label>Expected close date
