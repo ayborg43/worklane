@@ -469,7 +469,11 @@ a:hover { text-decoration: underline; }
   .nav-topbar-cluster a:not(.button):hover { background: none; text-decoration: underline; }
   .nav-topbar-cluster .nav-search-trigger { width: auto; }
   .notif-dropdown { left: auto; right: 0; top: calc(100% + 0.5rem); margin-left: 0; }
-  main.container { margin-left: 220px; margin-top: 56px; }
+  /* Scoped to pages that actually have the sidebar (nav.html renders
+     nothing at all for a logged-out visitor — just the login/register
+     pages today) so those pages' own centered .auth-shell isn't pushed
+     off-center by a margin reserved for a sidebar that isn't there. */
+  body:has(.nav) main.container { margin-left: 220px; margin-top: 56px; }
 }
 .avatar {
   display: inline-flex;
