@@ -586,12 +586,15 @@ details.card[open] summary::before { content: "\2212"; }
   /* The brand block (icon + heading + tagline) is sized to sit *beside*
      the card in the desktop two-column grid — stacked above it here at
      full size, it was tall enough to push the submit button below the
-     fold on shorter phones while also leaving a large dead gap under the
-     card on taller ones. Shrinking it (rather than fighting either
-     symptom with a viewport-height calc) fixes both at once, and the nav
-     bar already shows the Worklane brand, so restating it this large
-     directly underneath is redundant anyway. */
-  .auth-shell { grid-template-columns: 1fr; gap: 1.1rem; min-height: 0; margin: 0.5rem auto; }
+     fold on shorter phones. Shrinking it fixes that. Separately, the
+     stack is still vertically centered in the viewport (not just given
+     min-height: 0 and left at the top) the same way the desktop grid
+     already centers it — otherwise a normal-height phone is left with a
+     large dead gap below the card, and the whole page reads as top-heavy
+     rather than composed. .container's own 2.5rem top / 4rem bottom
+     padding is subtracted here so the two don't double up. dvh (not vh)
+     so iOS Safari's address bar showing/hiding doesn't jump the layout. */
+  .auth-shell { grid-template-columns: 1fr; gap: 1.5rem; min-height: calc(100dvh - 6.5rem); margin: 0 auto; }
   .auth-brand { text-align: center; padding: 0; }
   .auth-brand-mark { width: 2.25rem; height: 2.25rem; font-size: 1.05rem; border-radius: 10px; margin-bottom: 0.6rem; }
   .auth-brand h2 { font-size: 1.25rem; margin-bottom: 0.3rem; }
