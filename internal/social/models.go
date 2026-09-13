@@ -1,6 +1,9 @@
 package social
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Platforms is the fixed, supported set — matches the CHECK constraints on
 // social_app_credentials/social_accounts. Only "x" has a working Provider
@@ -45,10 +48,15 @@ func (c AppCredentials) Label() string {
 }
 
 // Implemented reports whether this platform has an actual Provider wired
-// up yet (only "x" today) — the connections page uses this to show
-// "coming soon" instead of a non-functional connect button.
+// up yet — the connections page uses this to show "coming soon" instead
+// of a non-functional connect button for the rest (linkedin, facebook).
 func (c AppCredentials) Implemented() bool {
-	return c.Platform == "x"
+	switch c.Platform {
+	case "x", "instagram", "tiktok":
+		return true
+	default:
+		return false
+	}
 }
 
 // Account is a connected company account for a platform, able to publish
@@ -71,19 +79,29 @@ func (a Account) PlatformName() string {
 	return PlatformLabel(a.Platform)
 }
 
+// Post's media fields are optional for X (text-only posts work fine
+// there) but required for Instagram and TikTok — both of their publishing
+// APIs reject a post with no photo/video, there being no text-only post
+// type on either platform. See instagram.go/tiktok.go.
 type Post struct {
-	ID            int64
-	Body          string
-	CreatedByName string
-	ScheduledAt   *time.Time
-	CreatedAt     time.Time
-	Targets       []PostTarget
+	ID               int64
+	Body             string
+	MediaPath        string
+	MediaContentType string
+	CreatedByName    string
+	ScheduledAt      *time.Time
+	CreatedAt        time.Time
+	Targets          []PostTarget
 }
 
 // IsScheduled is false for a post that was (or will be) sent immediately.
 func (p Post) IsScheduled() bool {
 	return p.ScheduledAt != nil
 }
+
+func (p Post) HasMedia() bool { return p.MediaPath != "" }
+
+func (p Post) IsImage() bool { return strings.HasPrefix(p.MediaContentType, "image/") }
 
 type PostTarget struct {
 	ID           int64

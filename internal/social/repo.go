@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,16 +17,31 @@ var (
 	ErrNotFound          = errors.New("not found")
 	ErrOAuthStateInvalid = errors.New("oauth state invalid or expired")
 	// ErrNotImplemented covers a platform with no working Provider yet
-	// (everything except "x" today) — see AppCredentials.Implemented.
+	// (linkedin, facebook — see AppCredentials.Implemented).
 	ErrNotImplemented = errors.New("this platform isn't connected yet")
+	// ErrMediaRequired covers publishing to a platform (Instagram, TikTok)
+	// that has no text-only post type when the post itself has no media
+	// attached.
+	ErrMediaRequired = errors.New("this platform requires a photo or video attachment")
 )
 
 type Repo struct {
 	pool *pgxpool.Pool
+	// baseURL must be a real, publicly-reachable hostname for
+	// publishInstagram/publishTikTok's media URL to work — Meta's and
+	// TikTok's servers fetch it directly, so a local dev "localhost" value
+	// only works once this app is actually deployed somewhere public.
+	baseURL string
 }
 
-func NewRepo(pool *pgxpool.Pool) *Repo {
-	return &Repo{pool: pool}
+func NewRepo(pool *pgxpool.Pool, baseURL string) *Repo {
+	return &Repo{pool: pool, baseURL: baseURL}
+}
+
+// mediaURL is the publicly-fetchable URL for a post's attached media —
+// see handlers.go's ServeMedia for the route this points at.
+func (r *Repo) mediaURL(postID int64) string {
+	return fmt.Sprintf("%s/social/media/%d", r.baseURL, postID)
 }
 
 // ---------- app credentials ----------
@@ -175,6 +191,10 @@ func (r *Repo) StartOAuth(ctx context.Context, platform, clientID, redirectURI s
 	switch platform {
 	case "x":
 		return xAuthorizeRedirectURL(clientID, redirectURI, state, challenge), nil
+	case "instagram":
+		return instagramAuthorizeRedirectURL(clientID, redirectURI, state), nil
+	case "tiktok":
+		return tiktokAuthorizeRedirectURL(clientID, redirectURI, state, challenge), nil
 	default:
 		return "", ErrNotImplemented
 	}
@@ -223,14 +243,24 @@ func (r *Repo) FinishOAuth(ctx context.Context, state, code, redirectURI string,
 	if s.InitiatedBy != connectedBy {
 		return nil, ErrOAuthStateInvalid
 	}
-	if s.Platform != "x" {
-		return nil, ErrNotImplemented
-	}
 	creds, err := r.GetAppCredentials(ctx, s.Platform)
 	if err != nil {
 		return nil, err
 	}
-	tok, err := xExchangeCode(ctx, creds.ClientID, creds.ClientSecret, redirectURI, code, s.CodeVerifier)
+	switch s.Platform {
+	case "x":
+		return r.finishXOAuth(ctx, *creds, redirectURI, code, s.CodeVerifier, connectedBy)
+	case "instagram":
+		return r.finishInstagramOAuth(ctx, *creds, redirectURI, code, connectedBy)
+	case "tiktok":
+		return r.finishTikTokOAuth(ctx, *creds, redirectURI, code, s.CodeVerifier, connectedBy)
+	default:
+		return nil, ErrNotImplemented
+	}
+}
+
+func (r *Repo) finishXOAuth(ctx context.Context, creds AppCredentials, redirectURI, code, codeVerifier string, connectedBy int64) (*Account, error) {
+	tok, err := xExchangeCode(ctx, creds.ClientID, creds.ClientSecret, redirectURI, code, codeVerifier)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +269,46 @@ func (r *Repo) FinishOAuth(ctx context.Context, state, code, redirectURI string,
 		return nil, err
 	}
 	expiresAt := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
-	id, err := r.CreateAccount(ctx, s.Platform, "@"+username, username, tok.AccessToken, tok.RefreshToken, expiresAt, connectedBy)
+	id, err := r.CreateAccount(ctx, "x", "@"+username, username, tok.AccessToken, tok.RefreshToken, expiresAt, connectedBy)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetAccount(ctx, id)
+}
+
+// finishInstagramOAuth has no refresh_token to store (Meta's long-lived
+// tokens are extended by re-exchanging the current token itself — see
+// instagramExchangeLongLivedToken), so RefreshToken is left empty on the
+// created account; publishInstagram re-exchanges AccessToken directly
+// when it's expiring soon.
+func (r *Repo) finishInstagramOAuth(ctx context.Context, creds AppCredentials, redirectURI, code string, connectedBy int64) (*Account, error) {
+	tok, err := instagramExchangeCode(ctx, creds.ClientID, creds.ClientSecret, redirectURI, code)
+	if err != nil {
+		return nil, err
+	}
+	identity, err := instagramFindBusinessAccount(ctx, tok.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
+	id, err := r.CreateAccount(ctx, "instagram", "@"+identity.Username, identity.InstagramUserID, identity.PageAccessToken, "", expiresAt, connectedBy)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetAccount(ctx, id)
+}
+
+func (r *Repo) finishTikTokOAuth(ctx context.Context, creds AppCredentials, redirectURI, code, codeVerifier string, connectedBy int64) (*Account, error) {
+	tok, err := tiktokExchangeCode(ctx, creds.ClientID, creds.ClientSecret, redirectURI, code, codeVerifier)
+	if err != nil {
+		return nil, err
+	}
+	displayName, err := tiktokFetchMe(ctx, tok.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
+	id, err := r.CreateAccount(ctx, "tiktok", displayName, displayName, tok.AccessToken, tok.RefreshToken, expiresAt, connectedBy)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +317,7 @@ func (r *Repo) FinishOAuth(ctx context.Context, state, code, redirectURI string,
 
 // ---------- posts ----------
 
-func (r *Repo) CreatePost(ctx context.Context, body string, scheduledAt *time.Time, accountIDs []int64, createdBy int64) (int64, error) {
+func (r *Repo) CreatePost(ctx context.Context, body, mediaPath, mediaContentType string, scheduledAt *time.Time, accountIDs []int64, createdBy int64) (int64, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -257,8 +326,9 @@ func (r *Repo) CreatePost(ctx context.Context, body string, scheduledAt *time.Ti
 
 	var postID int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO social_posts (body, created_by, scheduled_at) VALUES ($1, $2, $3) RETURNING id`,
-		body, createdBy, scheduledAt,
+		INSERT INTO social_posts (body, media_path, media_content_type, created_by, scheduled_at)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		body, mediaPath, mediaContentType, createdBy, scheduledAt,
 	).Scan(&postID); err != nil {
 		return 0, err
 	}
@@ -275,13 +345,13 @@ func (r *Repo) CreatePost(ctx context.Context, body string, scheduledAt *time.Ti
 }
 
 const postSelect = `
-	SELECT p.id, p.body, COALESCE(u.name, ''), p.scheduled_at, p.created_at
+	SELECT p.id, p.body, p.media_path, p.media_content_type, COALESCE(u.name, ''), p.scheduled_at, p.created_at
 	FROM social_posts p
 	JOIN users u ON u.id = p.created_by`
 
 func scanPost(row pgx.Row) (*Post, error) {
 	var p Post
-	err := row.Scan(&p.ID, &p.Body, &p.CreatedByName, &p.ScheduledAt, &p.CreatedAt)
+	err := row.Scan(&p.ID, &p.Body, &p.MediaPath, &p.MediaContentType, &p.CreatedByName, &p.ScheduledAt, &p.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -289,6 +359,13 @@ func scanPost(row pgx.Row) (*Post, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// GetPost is used by the public media-serving route (see handlers.go) —
+// it needs the post's media path/content type to stream the file back to
+// whichever platform's servers are fetching it.
+func (r *Repo) GetPost(ctx context.Context, id int64) (*Post, error) {
+	return scanPost(r.pool.QueryRow(ctx, postSelect+` WHERE p.id = $1`, id))
 }
 
 func (r *Repo) ListPosts(ctx context.Context, limit int) ([]Post, error) {
@@ -299,7 +376,7 @@ func (r *Repo) ListPosts(ctx context.Context, limit int) ([]Post, error) {
 	var posts []Post
 	for rows.Next() {
 		var p Post
-		if err := rows.Scan(&p.ID, &p.Body, &p.CreatedByName, &p.ScheduledAt, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Body, &p.MediaPath, &p.MediaContentType, &p.CreatedByName, &p.ScheduledAt, &p.CreatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -344,59 +421,54 @@ func (r *Repo) listTargetsForPost(ctx context.Context, postID int64) ([]PostTarg
 }
 
 type dueTarget struct {
-	TargetID  int64
-	AccountID int64
-	Body      string
+	TargetID         int64
+	AccountID        int64
+	PostID           int64
+	Body             string
+	MediaPath        string
+	MediaContentType string
+}
+
+const dueTargetSelect = `
+	SELECT t.id, t.account_id, p.id, p.body, p.media_path, p.media_content_type
+	FROM social_post_targets t
+	JOIN social_posts p ON p.id = t.post_id`
+
+func scanDueTargets(rows pgx.Rows) ([]dueTarget, error) {
+	defer rows.Close()
+	var out []dueTarget
+	for rows.Next() {
+		var d dueTarget
+		if err := rows.Scan(&d.TargetID, &d.AccountID, &d.PostID, &d.Body, &d.MediaPath, &d.MediaContentType); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
 }
 
 // ListReadyTargets returns pending targets whose post should be attempted
 // now: either scheduled_at is null (send immediately, right after
 // CreatePost) or it has passed (picked up by the scheduler ticker).
 func (r *Repo) ListReadyTargets(ctx context.Context, postID int64) ([]dueTarget, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT t.id, t.account_id, p.body
-		FROM social_post_targets t
-		JOIN social_posts p ON p.id = t.post_id
+	rows, err := r.pool.Query(ctx, dueTargetSelect+`
 		WHERE t.post_id = $1 AND t.status = 'pending'
 		  AND (p.scheduled_at IS NULL OR p.scheduled_at <= now())`, postID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var out []dueTarget
-	for rows.Next() {
-		var d dueTarget
-		if err := rows.Scan(&d.TargetID, &d.AccountID, &d.Body); err != nil {
-			return nil, err
-		}
-		out = append(out, d)
-	}
-	return out, rows.Err()
+	return scanDueTargets(rows)
 }
 
 // ListAllDueTargets is the scheduler ticker's entry point: every pending
 // target anywhere whose post's scheduled time has arrived.
 func (r *Repo) ListAllDueTargets(ctx context.Context) ([]dueTarget, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT t.id, t.account_id, p.body
-		FROM social_post_targets t
-		JOIN social_posts p ON p.id = t.post_id
+	rows, err := r.pool.Query(ctx, dueTargetSelect+`
 		WHERE t.status = 'pending' AND p.scheduled_at IS NOT NULL AND p.scheduled_at <= now()`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var out []dueTarget
-	for rows.Next() {
-		var d dueTarget
-		if err := rows.Scan(&d.TargetID, &d.AccountID, &d.Body); err != nil {
-			return nil, err
-		}
-		out = append(out, d)
-	}
-	return out, rows.Err()
+	return scanDueTargets(rows)
 }
 
 func (r *Repo) markTargetPosted(ctx context.Context, targetID int64, remotePostID string) error {
@@ -429,6 +501,10 @@ func (r *Repo) PublishTarget(ctx context.Context, d dueTarget) {
 	switch account.Platform {
 	case "x":
 		r.publishX(ctx, d, account)
+	case "instagram":
+		r.publishInstagram(ctx, d, account)
+	case "tiktok":
+		r.publishTikTok(ctx, d, account)
 	default:
 		r.markTargetFailed(ctx, d.TargetID, "unsupported platform: "+account.Platform)
 	}
@@ -436,7 +512,7 @@ func (r *Repo) PublishTarget(ctx context.Context, d dueTarget) {
 
 func (r *Repo) publishX(ctx context.Context, d dueTarget, account *Account) {
 	accessToken := account.AccessToken
-	if xTokenExpiringSoon(account.TokenExpiresAt) {
+	if tokenExpiringSoon(account.TokenExpiresAt) {
 		creds, err := r.GetAppCredentials(ctx, "x")
 		if err != nil {
 			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("refresh: load credentials: %v", err))
@@ -461,4 +537,77 @@ func (r *Repo) publishX(ctx context.Context, d dueTarget, account *Account) {
 		return
 	}
 	r.markTargetPosted(ctx, d.TargetID, tweetID)
+}
+
+func (r *Repo) publishInstagram(ctx context.Context, d dueTarget, account *Account) {
+	if d.MediaPath == "" {
+		r.markTargetFailed(ctx, d.TargetID, ErrMediaRequired.Error())
+		return
+	}
+
+	accessToken := account.AccessToken
+	if tokenExpiringSoon(account.TokenExpiresAt) {
+		creds, err := r.GetAppCredentials(ctx, "instagram")
+		if err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("refresh: load credentials: %v", err))
+			return
+		}
+		tok, err := instagramExchangeLongLivedToken(ctx, creds.ClientID, creds.ClientSecret, account.AccessToken)
+		if err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("refresh token: %v", err))
+			return
+		}
+		expiresAt := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
+		if err := r.updateAccountTokens(ctx, account.ID, tok.AccessToken, "", expiresAt); err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("save refreshed token: %v", err))
+			return
+		}
+		accessToken = tok.AccessToken
+	}
+
+	isVideo := strings.HasPrefix(d.MediaContentType, "video/")
+	mediaID, err := instagramPublish(ctx, accessToken, account.ExternalAccountID, r.mediaURL(d.PostID), d.Body, isVideo)
+	if err != nil {
+		r.markTargetFailed(ctx, d.TargetID, err.Error())
+		return
+	}
+	r.markTargetPosted(ctx, d.TargetID, mediaID)
+}
+
+func (r *Repo) publishTikTok(ctx context.Context, d dueTarget, account *Account) {
+	if d.MediaPath == "" {
+		r.markTargetFailed(ctx, d.TargetID, ErrMediaRequired.Error())
+		return
+	}
+	if !strings.HasPrefix(d.MediaContentType, "video/") {
+		r.markTargetFailed(ctx, d.TargetID, "TikTok requires a video attachment (a photo was attached instead)")
+		return
+	}
+
+	accessToken := account.AccessToken
+	if tokenExpiringSoon(account.TokenExpiresAt) {
+		creds, err := r.GetAppCredentials(ctx, "tiktok")
+		if err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("refresh: load credentials: %v", err))
+			return
+		}
+		tok, err := tiktokRefreshToken(ctx, creds.ClientID, creds.ClientSecret, account.RefreshToken)
+		if err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("refresh token: %v", err))
+			return
+		}
+		expiresAt := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
+		if err := r.updateAccountTokens(ctx, account.ID, tok.AccessToken, tok.RefreshToken, expiresAt); err != nil {
+			r.markTargetFailed(ctx, d.TargetID, fmt.Sprintf("save refreshed token: %v", err))
+			return
+		}
+		accessToken = tok.AccessToken
+	}
+
+	publishID, err := tiktokPublish(ctx, accessToken, r.mediaURL(d.PostID), d.Body)
+	if err != nil {
+		r.markTargetFailed(ctx, d.TargetID, err.Error())
+		return
+	}
+	r.markTargetPosted(ctx, d.TargetID, publishID)
 }

@@ -4,9 +4,12 @@
 <div class="card" style="margin-bottom:1.5rem;">
   <h3 style="margin-top:0;">New post</h3>
   {{if .Accounts}}
-  <form hx-post="/social/posts" hx-target="#social-body" hx-swap="outerHTML">
+  <form hx-post="/social/posts" hx-target="#social-body" hx-swap="outerHTML" hx-encoding="multipart/form-data">
     <label>What do you want to post?
       <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…" data-ai-rephrase></textarea>
+    </label>
+    <label>Photo or video <span style="font-weight:400; text-transform:none; color:var(--text-muted);">(required for Instagram and TikTok — optional for X)</span>
+      <input type="file" name="media" accept="image/*,video/*">
     </label>
     <label>Post to
       <div class="member-row-wrap" style="gap:0.9rem; flex-wrap:wrap;">
@@ -39,6 +42,13 @@
     <li class="activity-row" style="align-items:flex-start;">
       <div style="flex:1 1 auto; min-width:0;">
         <div>{{.Body}}</div>
+        {{if .HasMedia}}
+          {{if .IsImage}}
+          <img src="/social/media/{{.ID}}" alt="" style="max-width:160px; max-height:160px; border-radius:var(--radius-sm); margin-top:0.5rem; display:block;">
+          {{else}}
+          <a href="/social/media/{{.ID}}" target="_blank" rel="noopener" style="display:inline-block; margin-top:0.5rem;">Attached video</a>
+          {{end}}
+        {{end}}
         <div style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
           {{range .Targets}}
           <span class="badge{{if eq .Status "posted"}} badge-approved{{else if eq .Status "failed"}} badge-rejected{{else}} badge-submitted{{end}}" title="{{.ErrorMessage}}">

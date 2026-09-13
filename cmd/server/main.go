@@ -36,6 +36,7 @@ import (
 )
 
 const attachmentsDir = "data/attachments"
+const socialMediaDir = "data/social"
 
 func main() {
 	_ = godotenv.Load()
@@ -101,6 +102,9 @@ func main() {
 	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		log.Fatalf("create attachments dir: %v", err)
 	}
+	if err := os.MkdirAll(socialMediaDir, 0o755); err != nil {
+		log.Fatalf("create social media dir: %v", err)
+	}
 	attachmentsRepo := attachments.NewRepo(pool)
 
 	settingsRepo := settings.NewRepo(pool)
@@ -162,8 +166,8 @@ func main() {
 	portalHandlers := portal.NewHandlers(portalRepo, settingsRepo, renderer, cfg.BaseURL, cfg.CookieSecure)
 	portalHandlers.MountRoutes(mux, authMW, portalMW)
 
-	socialRepo := social.NewRepo(pool)
-	socialHandlers := social.NewHandlers(socialRepo, renderer, cfg.BaseURL)
+	socialRepo := social.NewRepo(pool, cfg.BaseURL)
+	socialHandlers := social.NewHandlers(socialRepo, renderer, cfg.BaseURL, socialMediaDir)
 	socialHandlers.MountRoutes(mux, authMW)
 
 	chatHub := chat.NewHub()

@@ -170,8 +170,10 @@ func xPublish(ctx context.Context, accessToken, text string) (tweetID string, er
 	return out.Data.ID, nil
 }
 
-// xTokenExpiringSoon guards a refresh call with a minute of slack so a
-// token that's valid-but-about-to-expire doesn't fail mid-publish.
-func xTokenExpiringSoon(expiresAt *time.Time) bool {
+// tokenExpiringSoon guards a refresh call with a minute of slack so a
+// token that's valid-but-about-to-expire doesn't fail mid-publish. Shared
+// across all three providers (X, Instagram, TikTok) — it's a pure
+// time.Time comparison with nothing platform-specific about it.
+func tokenExpiringSoon(expiresAt *time.Time) bool {
 	return expiresAt == nil || time.Now().Add(1*time.Minute).After(*expiresAt)
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sociolytik/odoo-clone/internal/auth"
+	"github.com/sociolytik/odoo-clone/internal/uploads"
 	"github.com/sociolytik/odoo-clone/internal/web"
 )
 
@@ -19,10 +20,11 @@ type Handlers struct {
 	Repo     *Repo
 	Renderer *web.Renderer
 	BaseURL  string
+	MediaDir string
 }
 
-func NewHandlers(repo *Repo, renderer *web.Renderer, baseURL string) *Handlers {
-	return &Handlers{Repo: repo, Renderer: renderer, BaseURL: baseURL}
+func NewHandlers(repo *Repo, renderer *web.Renderer, baseURL, mediaDir string) *Handlers {
+	return &Handlers{Repo: repo, Renderer: renderer, BaseURL: baseURL, MediaDir: mediaDir}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
@@ -34,6 +36,14 @@ func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /social/connect/{platform}", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Connect))))
 	mux.Handle("GET /social/oauth/{platform}/callback", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.OAuthCallback))))
 	mux.Handle("POST /social/accounts/{accountID}/disconnect", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Disconnect))))
+
+	// Deliberately not behind auth: Instagram's and TikTok's own servers
+	// fetch a post's media directly by URL as part of publishing it (see
+	// instagram.go/tiktok.go), with no session cookie of ours to send.
+	// Only ever serves what a post's own media_path points at — never a
+	// general file browser — and that content is, by construction, about
+	// to be published publicly on the target platform anyway.
+	mux.HandleFunc("GET /social/media/{postID}", h.ServeMedia)
 }
 
 func (h *Handlers) redirectURI(platform string) string {
@@ -85,8 +95,12 @@ func (h *Handlers) renderIndexBody(w http.ResponseWriter, r *http.Request, errMs
 }
 
 func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	// multipart now that an optional media file can ride along — the
+	// compose form always submits this way (hx-encoding="multipart/form-data"),
+	// text-only posts (X) just leave the file field empty.
+	r.Body = http.MaxBytesReader(w, r.Body, uploads.MaxSize)
+	if err := r.ParseMultipartForm(uploads.MaxSize); err != nil {
+		h.renderIndexBody(w, r, "Media file too large (max 10MB) or invalid upload.")
 		return
 	}
 	user := auth.UserFromContext(r.Context())
@@ -110,6 +124,20 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var mediaPath, mediaContentType string
+	if file, header, err := r.FormFile("media"); err == nil {
+		defer file.Close()
+		mediaContentType = header.Header.Get("Content-Type")
+		if mediaContentType == "" {
+			mediaContentType = "application/octet-stream"
+		}
+		mediaPath, _, err = uploads.Save(h.MediaDir, file, header)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	var scheduledAt *time.Time
 	if v := strings.TrimSpace(r.FormValue("scheduled_at")); v != "" {
 		t, err := time.Parse("2006-01-02T15:04", v)
@@ -120,7 +148,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 		scheduledAt = &t
 	}
 
-	postID, err := h.Repo.CreatePost(r.Context(), body, scheduledAt, accountIDs, user.ID)
+	postID, err := h.Repo.CreatePost(r.Context(), body, mediaPath, mediaContentType, scheduledAt, accountIDs, user.ID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -300,4 +328,21 @@ func (h *Handlers) PublishDuePosts(ctx context.Context) {
 	for _, t := range due {
 		h.Repo.PublishTarget(ctx, t)
 	}
+}
+
+// ServeMedia streams a post's attached media by post id — see MountRoutes
+// for why this route carries no auth check.
+func (h *Handlers) ServeMedia(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("postID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	post, err := h.Repo.GetPost(r.Context(), id)
+	if err != nil || post.MediaPath == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", post.MediaContentType)
+	http.ServeFile(w, r, post.MediaPath)
 }
