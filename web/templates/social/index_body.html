@@ -3,7 +3,6 @@
 
 <div class="card" style="margin-bottom:1.5rem;">
   <h3 style="margin-top:0;">New post</h3>
-  {{if .Accounts}}
   <form hx-post="/social/posts" hx-target="#social-body" hx-swap="outerHTML" hx-encoding="multipart/form-data">
     <label>What do you want to post?
       <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…" data-ai-rephrase></textarea>
@@ -11,7 +10,9 @@
     <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-top:-0.6rem; margin-bottom:1rem;">
       <input type="text" id="social-ai-topic" placeholder="Or give AI a topic to draft a post from…" style="flex:1 1 260px; margin:0;">
       <button type="button" id="social-ai-generate-btn" class="link-button">AI: Generate post</button>
+      <button type="button" id="social-ai-copy-btn" class="link-button">Copy</button>
     </div>
+    {{if .Accounts}}
     <label>Photo or video <span style="font-weight:400; text-transform:none; color:var(--text-muted);">(required for Instagram and TikTok — optional for X)</span>
       <input type="file" name="media" accept="image/*,video/*">
     </label>
@@ -33,6 +34,13 @@
       <input type="datetime-local" name="scheduled_at" style="max-width:220px;">
     </label>
     <button type="submit">Post</button>
+    {{else}}
+    <p class="empty-state" style="margin-top:0; text-align:left;">
+      No connected accounts yet — copy your draft above to post it yourself, or
+      {{if .CurrentUser.IsAdmin}}head to <a href="/social/connections">Connections</a>{{else}}ask an admin to connect one in Settings → Connections{{end}}
+      to publish directly from here.
+    </p>
+    {{end}}
   </form>
   <script>
     (function () {
@@ -41,6 +49,9 @@
       var textarea = form.querySelector('textarea[name="body"]');
       var topicInput = document.getElementById("social-ai-topic");
       var generateBtn = document.getElementById("social-ai-generate-btn");
+      var copyBtn = document.getElementById("social-ai-copy-btn");
+      // Only present once an account is connected — tailoring needs a
+      // platform to tailor for, so there's nothing to wire up without one.
       var tailorBtn = document.getElementById("social-ai-tailor-btn");
       var tailorWrap = document.getElementById("social-ai-tailor-wrap");
 
@@ -52,6 +63,12 @@
           btn.disabled = false;
           btn.textContent = original;
         });
+      }
+
+      function flash(btn, label) {
+        var original = btn.textContent;
+        btn.textContent = label;
+        setTimeout(function () { btn.textContent = original; }, 1500);
       }
 
       function postJSON(url, payload) {
@@ -84,46 +101,66 @@
         });
       });
 
-      tailorBtn.addEventListener("click", function () {
+      if (tailorBtn && tailorWrap) {
+        tailorBtn.addEventListener("click", function () {
+          var text = textarea.value.trim();
+          if (!text) { textarea.focus(); return; }
+          var checked = Array.prototype.slice.call(form.querySelectorAll('input[name="account_ids"]:checked'));
+          if (checked.length === 0) { window.alert("Pick at least one account to tailor for."); return; }
+          var platforms = [];
+          checked.forEach(function (cb) {
+            if (platforms.indexOf(cb.dataset.platform) === -1) platforms.push(cb.dataset.platform);
+          });
+          withBusy(tailorBtn, "Tailoring…", function () {
+            return postJSON("/social/ai/adapt", { text: text, platforms: platforms })
+              .then(function (byPlatform) {
+                tailorWrap.innerHTML = "";
+                checked.forEach(function (cb) {
+                  var suggestion = byPlatform[cb.dataset.platform];
+                  if (!suggestion) return;
+                  var wrap = document.createElement("label");
+                  wrap.style.display = "block";
+                  wrap.style.marginTop = "0.6rem";
+                  wrap.textContent = cb.parentElement.textContent.trim() + " caption";
+                  var ta = document.createElement("textarea");
+                  ta.name = "caption_override_" + cb.value;
+                  ta.rows = 2;
+                  ta.value = suggestion;
+                  wrap.appendChild(ta);
+                  tailorWrap.appendChild(wrap);
+                });
+                tailorWrap.hidden = tailorWrap.childElementCount === 0;
+              })
+              .catch(function (err) { window.alert(err.message || "Couldn't tailor captions."); });
+          });
+        });
+      }
+
+      // Lets someone draft with AI and paste the result into a platform
+      // that isn't connected (or connected at all) — the whole point of
+      // having this button available even with zero connected accounts.
+      copyBtn.addEventListener("click", function () {
         var text = textarea.value.trim();
         if (!text) { textarea.focus(); return; }
-        var checked = Array.prototype.slice.call(form.querySelectorAll('input[name="account_ids"]:checked'));
-        if (checked.length === 0) { window.alert("Pick at least one account to tailor for."); return; }
-        var platforms = [];
-        checked.forEach(function (cb) {
-          if (platforms.indexOf(cb.dataset.platform) === -1) platforms.push(cb.dataset.platform);
-        });
-        withBusy(tailorBtn, "Tailoring…", function () {
-          return postJSON("/social/ai/adapt", { text: text, platforms: platforms })
-            .then(function (byPlatform) {
-              tailorWrap.innerHTML = "";
-              checked.forEach(function (cb) {
-                var suggestion = byPlatform[cb.dataset.platform];
-                if (!suggestion) return;
-                var wrap = document.createElement("label");
-                wrap.style.display = "block";
-                wrap.style.marginTop = "0.6rem";
-                wrap.textContent = cb.parentElement.textContent.trim() + " caption";
-                var ta = document.createElement("textarea");
-                ta.name = "caption_override_" + cb.value;
-                ta.rows = 2;
-                ta.value = suggestion;
-                wrap.appendChild(ta);
-                tailorWrap.appendChild(wrap);
-              });
-              tailorWrap.hidden = tailorWrap.childElementCount === 0;
-            })
-            .catch(function (err) { window.alert(err.message || "Couldn't tailor captions."); });
-        });
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text)
+            .then(function () { flash(copyBtn, "Copied!"); })
+            .catch(function () { flash(copyBtn, "Couldn't copy"); });
+          return;
+        }
+        // Fallback for contexts without the async Clipboard API.
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand("copy");
+          flash(copyBtn, "Copied!");
+        } catch (e) {
+          flash(copyBtn, "Couldn't copy");
+        }
+        textarea.setSelectionRange(text.length, text.length);
       });
     })();
   </script>
-  {{else}}
-  <p class="empty-state">
-    No connected accounts yet.
-    {{if .CurrentUser.IsAdmin}}Head to <a href="/social/connections">Connections</a> to connect one.{{else}}Ask an admin to connect one in Settings → Connections.{{end}}
-  </p>
-  {{end}}
 </div>
 
 <div class="card">
