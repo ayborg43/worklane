@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"html/template"
 	"strings"
 	"time"
 
@@ -33,6 +34,11 @@ type Message struct {
 	AttachmentSizeBytes   int64
 	AttachmentPath        string
 	CreatedAt             time.Time
+	// BodyHTML is computed per-request (not a DB column) by RenderMentions —
+	// Body with any recognized "@Full Name" wrapped in a highlight span.
+	// Handlers must set it before rendering chat/message_row.html, which
+	// renders it in place of Body.
+	BodyHTML template.HTML
 }
 
 func (m Message) HasAttachment() bool { return m.AttachmentFilename != "" }

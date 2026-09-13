@@ -3,8 +3,10 @@ package chat
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"mime"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/sociolytik/odoo-clone/internal/auth"
+	"github.com/sociolytik/odoo-clone/internal/notifications"
 	"github.com/sociolytik/odoo-clone/internal/uploads"
 	"github.com/sociolytik/odoo-clone/internal/web"
 )
@@ -34,10 +37,11 @@ type Handlers struct {
 	Renderer       *web.Renderer
 	Hub            *Hub
 	AttachmentsDir string
+	Notifications  *notifications.Repo
 }
 
-func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer, hub *Hub, attachmentsDir string) *Handlers {
-	return &Handlers{Repo: repo, Users: users, Renderer: renderer, Hub: hub, AttachmentsDir: attachmentsDir}
+func NewHandlers(repo *Repo, users *auth.Repo, renderer *web.Renderer, hub *Hub, attachmentsDir string, notificationsRepo *notifications.Repo) *Handlers {
+	return &Handlers{Repo: repo, Users: users, Renderer: renderer, Hub: hub, AttachmentsDir: attachmentsDir, Notifications: notificationsRepo}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
@@ -101,6 +105,7 @@ func (h *Handlers) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	msg.UserName = user.Name
+	h.notifyMentions(r.Context(), msg, channelID, user)
 
 	var buf bytes.Buffer
 	if err := h.Renderer.RenderFragmentTo(&buf, "chat/message_row.html", msg); err != nil {
@@ -155,6 +160,12 @@ type chatData struct {
 	Users         []auth.User
 	ActiveChannel *Channel
 	Messages      []Message
+	// MentionUsersJSON drives the composer's "@" autocomplete dropdown —
+	// every other user in the org (see index.html), not scoped to the
+	// active channel's membership since group channels already include
+	// everyone and restricting DMs to just the other participant would be
+	// pointless.
+	MentionUsersJSON template.JS
 }
 
 func (h *Handlers) renderChat(w http.ResponseWriter, r *http.Request, activeChannelID int64) {
@@ -198,9 +209,10 @@ func (h *Handlers) renderChat(w http.ResponseWriter, r *http.Request, activeChan
 	}
 
 	data := chatData{
-		PageData: auth.PageData{CurrentUser: user},
-		Channels: channels,
-		Users:    users,
+		PageData:         auth.PageData{CurrentUser: user},
+		Channels:         channels,
+		Users:            users,
+		MentionUsersJSON: mentionUsersJSON(users, user.ID),
 	}
 
 	if activeChannelID != 0 {
@@ -213,6 +225,9 @@ func (h *Handlers) renderChat(w http.ResponseWriter, r *http.Request, activeChan
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
+		}
+		for i := range messages {
+			messages[i].BodyHTML, _ = RenderMentions(messages[i].Body, users)
 		}
 
 		data.ActiveChannel = channel
@@ -321,6 +336,7 @@ func (h *Handlers) ServeWS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		msg.UserName = user.Name
+		h.notifyMentions(context.Background(), msg, channelID, user)
 
 		var buf bytes.Buffer
 		if err := h.Renderer.RenderFragmentTo(&buf, "chat/message_row.html", msg); err != nil {
@@ -342,4 +358,68 @@ func (h *Handlers) handleLookupError(w http.ResponseWriter, r *http.Request, err
 		return
 	}
 	http.Error(w, "internal error", http.StatusInternalServerError)
+}
+
+// ---------- @-mentions ----------
+
+type mentionCandidate struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+// mentionUsersJSON builds the composer's autocomplete source list — every
+// user except the one composing (mentioning yourself is meaningless).
+func mentionUsersJSON(users []auth.User, currentUserID int64) template.JS {
+	candidates := make([]mentionCandidate, 0, len(users))
+	for _, u := range users {
+		if u.ID == currentUserID {
+			continue
+		}
+		candidates = append(candidates, mentionCandidate{ID: u.ID, Name: u.Name})
+	}
+	b, err := json.Marshal(candidates)
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
+}
+
+// notifyMentions sets msg.BodyHTML and, for every recognized @mention in
+// its body other than a self-mention, creates a notification — mirroring
+// the "don't fail the request over a notify error" convention used
+// throughout the app (see e.g. helpdesk's notifyIfAssigned). Called right
+// after a message is inserted, both from the WS text-message path and the
+// attachment-upload path, so mentions in captions work the same way.
+func (h *Handlers) notifyMentions(ctx context.Context, msg *Message, channelID int64, actingUser *auth.User) {
+	users, err := h.Users.ListUsers(ctx)
+	if err != nil {
+		log.Printf("chat: list users for mentions: %v", err)
+		msg.BodyHTML = template.HTML(template.HTMLEscapeString(msg.Body))
+		return
+	}
+	bodyHTML, mentioned := RenderMentions(msg.Body, users)
+	msg.BodyHTML = bodyHTML
+	if h.Notifications == nil || len(mentioned) == 0 {
+		return
+	}
+
+	link := fmt.Sprintf("/chat/channels/%d", channelID)
+	preview := truncateForPreview(msg.Body, 120)
+	for _, userID := range mentioned {
+		if userID == actingUser.ID {
+			continue
+		}
+		body := fmt.Sprintf("%s mentioned you in Discuss: %q", actingUser.Name, preview)
+		if err := h.Notifications.Create(ctx, userID, "chat_mention", body, link); err != nil {
+			log.Printf("chat: notify mention: %v", err)
+		}
+	}
+}
+
+func truncateForPreview(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "…"
 }

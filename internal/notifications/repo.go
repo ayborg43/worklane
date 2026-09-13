@@ -91,6 +91,8 @@ func kindLabel(kind string) string {
 		return "Time off request approved"
 	case "leave_rejected":
 		return "Time off request rejected"
+	case "chat_mention":
+		return "You were mentioned in Discuss"
 	default:
 		return "New notification"
 	}

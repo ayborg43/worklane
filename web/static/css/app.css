@@ -1330,6 +1330,38 @@ tr:target { animation: target-row-flash 2s ease-out; }
 }
 .emoji-dropdown button:hover { background: var(--surface-sunken); }
 
+.mention-input-wrap { position: relative; flex: 1; margin: 0 0.3rem; }
+.mention-input-wrap input { width: 100%; margin: 0; }
+.mention-dropdown {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  width: 220px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 0.3rem;
+  z-index: 30;
+}
+.mention-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.mention-dropdown button:hover, .mention-dropdown button.active { background: var(--surface-sunken); }
+
+.mention { background: var(--primary-light); color: var(--primary); border-radius: 4px; padding: 0 0.25rem; font-weight: 600; }
+
 @media (max-width: 780px) {
   .chat-layout { grid-template-columns: 1fr; height: auto; }
   .chat-channels { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 1rem; }

@@ -173,7 +173,7 @@ func main() {
 	chatHub := chat.NewHub()
 	go chatHub.Run()
 	chatRepo := chat.NewRepo(pool)
-	chatHandlers := chat.NewHandlers(chatRepo, authRepo, renderer, chatHub, attachmentsDir)
+	chatHandlers := chat.NewHandlers(chatRepo, authRepo, renderer, chatHub, attachmentsDir, notificationsRepo)
 	chatHandlers.MountRoutes(mux, authMW)
 
 	handler := authMW.LoadUser(mux)

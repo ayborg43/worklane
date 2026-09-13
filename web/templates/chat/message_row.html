@@ -1,7 +1,7 @@
 <div hx-swap-oob="beforeend:#messages">
 <div class="chat-message" data-user-id="{{.UserID}}">
   <div class="meta"><span class="author">{{.UserName}}</span> &middot; {{.CreatedAt.Format "15:04"}}</div>
-  {{if .Body}}<div class="body">{{.Body}}</div>{{end}}
+  {{if .Body}}<div class="body">{{.BodyHTML}}</div>{{end}}
   {{if .HasAttachment}}
     {{if .IsImage}}
     <a href="/chat/messages/{{.ID}}/download" class="chat-attachment-image" target="_blank" rel="noopener">
