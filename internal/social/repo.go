@@ -317,7 +317,7 @@ func (r *Repo) finishTikTokOAuth(ctx context.Context, creds AppCredentials, redi
 
 // ---------- posts ----------
 
-func (r *Repo) CreatePost(ctx context.Context, body, mediaPath, mediaContentType string, scheduledAt *time.Time, accountIDs []int64, createdBy int64) (int64, error) {
+func (r *Repo) CreatePost(ctx context.Context, body, mediaPath, mediaContentType string, scheduledAt *time.Time, targets []PostTargetInput, createdBy int64) (int64, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -332,9 +332,10 @@ func (r *Repo) CreatePost(ctx context.Context, body, mediaPath, mediaContentType
 	).Scan(&postID); err != nil {
 		return 0, err
 	}
-	for _, accountID := range accountIDs {
+	for _, t := range targets {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO social_post_targets (post_id, account_id) VALUES ($1, $2)`, postID, accountID); err != nil {
+			`INSERT INTO social_post_targets (post_id, account_id, caption_override) VALUES ($1, $2, $3)`,
+			postID, t.AccountID, t.CaptionOverride); err != nil {
 			return 0, err
 		}
 	}
@@ -430,7 +431,9 @@ type dueTarget struct {
 }
 
 const dueTargetSelect = `
-	SELECT t.id, t.account_id, p.id, p.body, p.media_path, p.media_content_type
+	SELECT t.id, t.account_id, p.id,
+	       CASE WHEN t.caption_override <> '' THEN t.caption_override ELSE p.body END,
+	       p.media_path, p.media_content_type
 	FROM social_post_targets t
 	JOIN social_posts p ON p.id = t.post_id`
 

@@ -45,7 +45,7 @@ func (r *Repo) Update(ctx context.Context, s Settings, updatedBy int64) error {
 	return err
 }
 
-const systemPrompt = "You are a writing assistant embedded in a business app. Rephrase the user's text to be clearer and more polished, keeping the same meaning, language, and approximate length. Reply with ONLY the rephrased text and nothing else — no quotes, no preamble, no explanation."
+const rephraseSystemPrompt = "You are a writing assistant embedded in a business app. Rephrase the user's text to be clearer and more polished, keeping the same meaning, language, and approximate length. Reply with ONLY the rephrased text and nothing else — no quotes, no preamble, no explanation."
 
 // Rephrase sends text to the configured OpenAI-compatible chat completions
 // endpoint (BaseURL is expected to already include any version prefix the
@@ -54,6 +54,14 @@ const systemPrompt = "You are a writing assistant embedded in a business app. Re
 // itself, Ollama's OpenAI-compatible mode, OpenRouter, Groq, etc.) and
 // returns the model's rewritten version.
 func (r *Repo) Rephrase(ctx context.Context, text string) (string, error) {
+	return r.Complete(ctx, rephraseSystemPrompt, text)
+}
+
+// Complete is the shared low-level call every AI-assisted feature in the
+// app builds on — Rephrase above, and other modules (e.g. social's
+// AI-generate/AI-adapt) that need their own system prompt instead of
+// rephrase's fixed one.
+func (r *Repo) Complete(ctx context.Context, systemPrompt, text string) (string, error) {
 	cfg, err := r.Get(ctx)
 	if err != nil {
 		return "", err

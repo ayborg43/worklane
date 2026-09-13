@@ -8,6 +8,10 @@
     <label>What do you want to post?
       <textarea name="body" rows="3" required maxlength="2000" placeholder="Write once, post everywhere you've connected…" data-ai-rephrase></textarea>
     </label>
+    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-top:-0.6rem; margin-bottom:1rem;">
+      <input type="text" id="social-ai-topic" placeholder="Or give AI a topic to draft a post from…" style="flex:1 1 260px; margin:0;">
+      <button type="button" id="social-ai-generate-btn" class="link-button">AI: Generate post</button>
+    </div>
     <label>Photo or video <span style="font-weight:400; text-transform:none; color:var(--text-muted);">(required for Instagram and TikTok — optional for X)</span>
       <input type="file" name="media" accept="image/*,video/*">
     </label>
@@ -15,17 +19,105 @@
       <div class="member-row-wrap" style="gap:0.9rem; flex-wrap:wrap;">
         {{range .Accounts}}
         <label style="display:inline-flex; align-items:center; gap:0.4rem; margin-bottom:0; font-weight:400; font-size:0.9rem; text-transform:none; letter-spacing:normal; color:var(--text);">
-          <input type="checkbox" name="account_ids" value="{{.ID}}">
+          <input type="checkbox" name="account_ids" value="{{.ID}}" data-platform="{{.Platform}}">
           {{.Label}} <span class="badge">{{.Platform}}</span>
         </label>
         {{end}}
       </div>
     </label>
+    <div style="margin-top:-0.4rem; margin-bottom:1rem;">
+      <button type="button" id="social-ai-tailor-btn" class="link-button">AI: Tailor caption per platform</button>
+      <div id="social-ai-tailor-wrap" hidden style="margin-top:0.6rem;"></div>
+    </div>
     <label>Schedule for later (optional)
       <input type="datetime-local" name="scheduled_at" style="max-width:220px;">
     </label>
     <button type="submit">Post</button>
   </form>
+  <script>
+    (function () {
+      var form = document.querySelector('#social-body form[hx-post="/social/posts"]');
+      if (!form) return;
+      var textarea = form.querySelector('textarea[name="body"]');
+      var topicInput = document.getElementById("social-ai-topic");
+      var generateBtn = document.getElementById("social-ai-generate-btn");
+      var tailorBtn = document.getElementById("social-ai-tailor-btn");
+      var tailorWrap = document.getElementById("social-ai-tailor-wrap");
+
+      function withBusy(btn, busyLabel, fn) {
+        var original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = busyLabel;
+        fn().finally(function () {
+          btn.disabled = false;
+          btn.textContent = original;
+        });
+      }
+
+      function postJSON(url, payload) {
+        return fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        }).then(function (res) {
+          if (res.status === 401) {
+            window.location.href = "/login";
+            throw new Error("unauthenticated");
+          }
+          if (!res.ok) return res.text().then(function (t) { throw new Error(t || "Request failed"); });
+          return res.json();
+        });
+      }
+
+      generateBtn.addEventListener("click", function () {
+        var topic = topicInput.value.trim();
+        if (!topic) { topicInput.focus(); return; }
+        withBusy(generateBtn, "Generating…", function () {
+          return postJSON("/social/ai/generate", { topic: topic })
+            .then(function (data) {
+              textarea.value = data.text;
+              textarea.dispatchEvent(new Event("input", { bubbles: true }));
+              topicInput.value = "";
+            })
+            .catch(function (err) { window.alert(err.message || "Couldn't generate a post."); });
+        });
+      });
+
+      tailorBtn.addEventListener("click", function () {
+        var text = textarea.value.trim();
+        if (!text) { textarea.focus(); return; }
+        var checked = Array.prototype.slice.call(form.querySelectorAll('input[name="account_ids"]:checked'));
+        if (checked.length === 0) { window.alert("Pick at least one account to tailor for."); return; }
+        var platforms = [];
+        checked.forEach(function (cb) {
+          if (platforms.indexOf(cb.dataset.platform) === -1) platforms.push(cb.dataset.platform);
+        });
+        withBusy(tailorBtn, "Tailoring…", function () {
+          return postJSON("/social/ai/adapt", { text: text, platforms: platforms })
+            .then(function (byPlatform) {
+              tailorWrap.innerHTML = "";
+              checked.forEach(function (cb) {
+                var suggestion = byPlatform[cb.dataset.platform];
+                if (!suggestion) return;
+                var wrap = document.createElement("label");
+                wrap.style.display = "block";
+                wrap.style.marginTop = "0.6rem";
+                wrap.textContent = cb.parentElement.textContent.trim() + " caption";
+                var ta = document.createElement("textarea");
+                ta.name = "caption_override_" + cb.value;
+                ta.rows = 2;
+                ta.value = suggestion;
+                wrap.appendChild(ta);
+                tailorWrap.appendChild(wrap);
+              });
+              tailorWrap.hidden = tailorWrap.childElementCount === 0;
+            })
+            .catch(function (err) { window.alert(err.message || "Couldn't tailor captions."); });
+        });
+      });
+    })();
+  </script>
   {{else}}
   <p class="empty-state">
     No connected accounts yet.

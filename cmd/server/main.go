@@ -167,7 +167,7 @@ func main() {
 	portalHandlers.MountRoutes(mux, authMW, portalMW)
 
 	socialRepo := social.NewRepo(pool, cfg.BaseURL)
-	socialHandlers := social.NewHandlers(socialRepo, renderer, cfg.BaseURL, socialMediaDir)
+	socialHandlers := social.NewHandlers(socialRepo, aiRepo, renderer, cfg.BaseURL, socialMediaDir)
 	socialHandlers.MountRoutes(mux, authMW)
 
 	chatHub := chat.NewHub()

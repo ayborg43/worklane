@@ -103,6 +103,15 @@ func (p Post) HasMedia() bool { return p.MediaPath != "" }
 
 func (p Post) IsImage() bool { return strings.HasPrefix(p.MediaContentType, "image/") }
 
+// PostTargetInput is one selected account for a new post, along with an
+// optional AI-tailored caption for that specific account — see
+// Repo.CreatePost and the compose form's "AI: Tailor caption per platform"
+// step in index_body.html.
+type PostTargetInput struct {
+	AccountID       int64
+	CaptionOverride string
+}
+
 type PostTarget struct {
 	ID           int64
 	PostID       int64

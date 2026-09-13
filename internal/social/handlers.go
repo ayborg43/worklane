@@ -2,13 +2,17 @@ package social
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sociolytik/odoo-clone/internal/ai"
 	"github.com/sociolytik/odoo-clone/internal/auth"
 	"github.com/sociolytik/odoo-clone/internal/uploads"
 	"github.com/sociolytik/odoo-clone/internal/web"
@@ -18,18 +22,21 @@ const postHistoryLimit = 50
 
 type Handlers struct {
 	Repo     *Repo
+	AI       *ai.Repo
 	Renderer *web.Renderer
 	BaseURL  string
 	MediaDir string
 }
 
-func NewHandlers(repo *Repo, renderer *web.Renderer, baseURL, mediaDir string) *Handlers {
-	return &Handlers{Repo: repo, Renderer: renderer, BaseURL: baseURL, MediaDir: mediaDir}
+func NewHandlers(repo *Repo, aiRepo *ai.Repo, renderer *web.Renderer, baseURL, mediaDir string) *Handlers {
+	return &Handlers{Repo: repo, AI: aiRepo, Renderer: renderer, BaseURL: baseURL, MediaDir: mediaDir}
 }
 
 func (h *Handlers) MountRoutes(mux *http.ServeMux, mw *auth.Middleware) {
 	mux.Handle("GET /social", mw.RequireAuthAndModule("social", http.HandlerFunc(h.Index)))
 	mux.Handle("POST /social/posts", mw.RequireAuthAndModule("social", http.HandlerFunc(h.CreatePost)))
+	mux.Handle("POST /social/ai/generate", mw.RequireAuthAndModule("social", http.HandlerFunc(h.GeneratePost)))
+	mux.Handle("POST /social/ai/adapt", mw.RequireAuthAndModule("social", http.HandlerFunc(h.AdaptCaptions)))
 
 	mux.Handle("GET /social/connections", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.Connections))))
 	mux.Handle("POST /social/connections/credentials/{platform}", mw.RequireAuth(mw.RequireAdmin(http.HandlerFunc(h.UpdateCredentials))))
@@ -123,6 +130,15 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexBody(w, r, "Pick at least one connected account to post to.")
 		return
 	}
+	// Per-account caption override — populated client-side by the "AI:
+	// Tailor caption per platform" step (see index_body.html), one field
+	// per selected account named by its id. Left blank, a target just
+	// uses the shared body above, same as before this feature existed.
+	targets := make([]PostTargetInput, 0, len(accountIDs))
+	for _, id := range accountIDs {
+		override := strings.TrimSpace(r.FormValue(fmt.Sprintf("caption_override_%d", id)))
+		targets = append(targets, PostTargetInput{AccountID: id, CaptionOverride: override})
+	}
 
 	var mediaPath, mediaContentType string
 	if file, header, err := r.FormFile("media"); err == nil {
@@ -148,7 +164,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 		scheduledAt = &t
 	}
 
-	postID, err := h.Repo.CreatePost(r.Context(), body, mediaPath, mediaContentType, scheduledAt, accountIDs, user.ID)
+	postID, err := h.Repo.CreatePost(r.Context(), body, mediaPath, mediaContentType, scheduledAt, targets, user.ID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -345,4 +361,106 @@ func (h *Handlers) ServeMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", post.MediaContentType)
 	http.ServeFile(w, r, post.MediaPath)
+}
+
+// ---------- AI-assisted composing ----------
+
+type generatePostRequest struct {
+	Topic string `json:"topic"`
+}
+
+type generatePostResponse struct {
+	Text string `json:"text"`
+}
+
+// GeneratePost drafts a full post from a short topic/bullet points — a
+// separate capability from the generic "Rephrase" button already on this
+// textarea (which only edits text that's already there).
+func (h *Handlers) GeneratePost(w http.ResponseWriter, r *http.Request) {
+	var req generatePostRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	topic := strings.TrimSpace(req.Topic)
+	if topic == "" {
+		http.Error(w, "topic is required", http.StatusBadRequest)
+		return
+	}
+
+	text, err := h.AI.Complete(r.Context(), generateSystemPrompt, topic)
+	if err != nil {
+		writeAIError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(generatePostResponse{Text: text})
+}
+
+type adaptCaptionsRequest struct {
+	Text      string   `json:"text"`
+	Platforms []string `json:"platforms"`
+}
+
+// AdaptCaptions tailors one draft into a platform-specific version for
+// each requested platform (concurrently — each is an independent AI call).
+// Returns whatever succeeded even if some platforms failed, since one
+// platform's caption still being useful shouldn't be thrown away over
+// another's failure.
+func (h *Handlers) AdaptCaptions(w http.ResponseWriter, r *http.Request) {
+	var req adaptCaptionsRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
+		http.Error(w, "text is required", http.StatusBadRequest)
+		return
+	}
+	if len(req.Platforms) == 0 {
+		http.Error(w, "at least one platform is required", http.StatusBadRequest)
+		return
+	}
+
+	type result struct {
+		platform string
+		text     string
+		err      error
+	}
+	results := make(chan result, len(req.Platforms))
+	for _, p := range req.Platforms {
+		p := p
+		go func() {
+			adapted, err := h.AI.Complete(r.Context(), platformAdaptSystemPrompt(p), text)
+			results <- result{platform: p, text: adapted, err: err}
+		}()
+	}
+
+	out := make(map[string]string, len(req.Platforms))
+	var firstErr error
+	for range req.Platforms {
+		res := <-results
+		if res.err != nil {
+			if firstErr == nil {
+				firstErr = res.err
+			}
+			continue
+		}
+		out[res.platform] = res.text
+	}
+	if len(out) == 0 && firstErr != nil {
+		writeAIError(w, firstErr)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(out)
+}
+
+func writeAIError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ai.ErrNotConfigured) {
+		http.Error(w, "AI isn't configured yet — ask an admin to set it up in Settings.", http.StatusServiceUnavailable)
+		return
+	}
+	http.Error(w, err.Error(), http.StatusBadGateway)
 }
